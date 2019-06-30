@@ -81,85 +81,6 @@ namespace PascalLexer {
 	inline static constexpr  cclass_t make_cclass(MORE ... more) {
 		return _private::_set_bits(std::forward<MORE>(more)...);
 	}
-	using CClass = cclass_t;
-#if 0
-	class CClass {
-		static constexpr size_t BIT_COUNT = 256;
-		using type = uint64_t;
-		static constexpr size_t	BITS_PER_WORD = 8 * sizeof(type);
-		static constexpr size_t	WORDS = 4; //  BIT_COUNT == 0 ? 0 : (BIT_COUNT - 1) / BITS_PER_WORD;
-		static constexpr type CLEAR_WORD = static_cast<type>(0);
-		static constexpr type SET_WORD = CLEAR_WORD ^ CLEAR_WORD;
-		//using cclass_t = std::array<type, WORDS>;
-		cclass_t _cc;
-
-		// constexpr init
-		static constexpr cclass_t __init_set(size_t pos) {
-			return {
-				(pos / BITS_PER_WORD) == 0 ? static_cast<type>(1) << (pos % BITS_PER_WORD) : 0,
-				(pos / BITS_PER_WORD) == 1 ? static_cast<type>(1) << (pos % BITS_PER_WORD) : 0,
-				(pos / BITS_PER_WORD) == 2 ? static_cast<type>(1) << (pos % BITS_PER_WORD) : 0,
-				(pos / BITS_PER_WORD) == 3 ? static_cast<type>(1) << (pos % BITS_PER_WORD) : 0,
-			};
-		}
-		static constexpr cclass_t __combine(cclass_t l, cclass_t r) {
-			return { l[0] | r[0], l[1] | r[1], l[2] | r[2], l[3] | r[3] };
-		}
-		static constexpr cclass_t __init() { return { 0, 0, 0, 0, }; }
-		static constexpr cclass_t __init(size_t pos) { return __init_set(pos); }
-		static constexpr cclass_t __init(uint8_t pos) { return __init_set(pos); }
-		static constexpr cclass_t __init(char pos) { return __init_set(pos); }
-		static constexpr cclass_t __init(CClass pos) { return pos._cc; }
-		// constexpr init
-		template<typename L, typename R>
-		static constexpr cclass_t __init(std::pair<L, R> pos) {
-			cclass_t cc = { 0,0,0,0 };
-			for (size_t i = pos.first; i <= pos.second; i++) cc = __combine(cc, __init(i));
-			return cc;
-		}
-
-		template<typename T, typename ... MORE>
-		static constexpr inline  cclass_t __init(T v, MORE ... more) { return __combine(__init(v), __init(std::forward<MORE>(more)...)); }
-		template<typename ... MORE>
-		static constexpr inline  cclass_t _init(MORE ... more) { return __init(std::forward<MORE>(more)...); }
-
-		bool _get(size_t pos) const { return (_cc[pos / BITS_PER_WORD] & (static_cast<type>(1) << (pos % BITS_PER_WORD))) != 0; }
-		inline void _set(size_t pos) { _cc[pos / BITS_PER_WORD] |= static_cast<type>(1) << (pos % BITS_PER_WORD); }
-		inline void _set(uint8_t pos) { _set(static_cast<size_t>(pos)); }
-		inline void _set(char pos) { _set(static_cast<size_t>(pos)); }
-		inline void _clear(size_t pos) { _cc[pos / BITS_PER_WORD] &= ~(static_cast<type>(1) << (pos % BITS_PER_WORD)); }
-		inline void _clear(uint8_t pos) { _clear(static_cast<size_t>(pos)); }
-		inline void _clear(char pos) { _clear(static_cast<size_t>(pos)); }
-		// recursive sets
-		inline  void _set(crange range) { for (size_t c = range.first; c <= range.second; c++) _set(static_cast<size_t>(c)); }
-		inline  void _clear(crange range) { for (size_t c = range.first; c <= range.second; c++) _clear(static_cast<size_t>(c)); }
-		template<typename T, typename ... MORE>
-		inline  void _set(T&& v, MORE ... more) { _set(v); _set(std::forward<MORE>(more)...); }
-		template<typename T, typename ... MORE>
-		inline  void _clear(T&& v, MORE ... more) { _clear(v); _clear(std::forward<MORE>(more)...); }
-	public:
-		constexpr CClass() : _cc() {}
-		constexpr CClass(cclass_t cc) : _cc(cc) {}
-		bool empty() const { for (const auto& b : _cc) if (b != static_cast<size_t>(0)) false; return true; }
-		template<typename ... T> constexpr void set(T ... v) { _set(std::forward<T>(v)...); }
-		template<typename ... T> constexpr void clear(T ... v) { _set(std::forward<T>(v)...); }
-		bool at(size_t pos) const { return _get(pos); }
-		bool operator[](size_t pos) const { return _get(pos); }
-		void flip() { for (auto& b : _cc) b ^= CLEAR_WORD; }
-	};
-	// because I keep changing CCClass, making these simple wrappers to help
-#endif
-	static inline void add_char_to_cclass(CClass& cc, char c) { _private::_set_bit(cc, c); }
-	static inline void add_range_to_cclass(CClass& cc, size_t f, size_t l) {
-		for (size_t i = f; i <= l; i++)_private::_set_bit(cc, i);
-	}
-	static inline void flip_cclass(CClass& cc) {
-		for (auto& c : cc)  c = ~c;
-	}
-	template<typename T>
-	static inline bool char_in_class(const CClass& cc,T c) {
-		return _private::_bit_is_set(cc, c);
-	}
 #define _USE_FAST
 #ifdef _USE_FAST
 #include <intrin.h>
@@ -174,31 +95,58 @@ namespace PascalLexer {
 		i = i + (i >> 16);
 		return i & 0x3f;
 	}
-	 static inline size_t count_bits(uint64_t bits) {
+	static inline size_t count_bits(uint64_t bits) {
 #ifdef _USE_FAST
 		return __popcnt64(bits);
 #else
-		 return bitCount2(static_cast<uint32_t>(bits)) + bitCount2(static_cast<uint32_t>(bits >> 32));
+		return bitCount2(static_cast<uint32_t>(bits)) + bitCount2(static_cast<uint32_t>(bits >> 32));
 		static constexpr uint8_t num_to_bits[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
 		if (bits == 0) return num_to_bits[0];
 
 #endif
 	}
-	 static inline size_t nchars(const CClass& cc) {
-		 size_t count = 0; 
-		 for (uint64_t b : cc) 
-			 count += count_bits(b); 
-		 return count;
+	class CClass {
+		cclass_t _cc;
+	public:
+		cclass_t& raw() { return _cc; }
+		constexpr CClass() : _cc() {}
+		constexpr CClass(cclass_t cc) : _cc(cc) {}
+		constexpr bool empty() const { for (const auto& b : _cc) if (b != static_cast<size_t>(0)) false; return true; }
+		void add(char c) { _private::_set_bit(_cc, (size_t)c); }
+		void add_range(uint8_t s, uint8_t e) { for (uint8_t i = s; i <= e; i++) add(i); }
+		bool at(size_t pos) const { return _private::_bit_is_set(_cc,pos); }
+		size_t size() const {
+			size_t count = 0;
+			for (auto b : _cc)
+				count += count_bits(b);
+			return count;
+		}
+		bool operator[](size_t pos) const { return at(pos); }
+		void flip() { for (auto& b : _cc) b = ~b; }
+		constexpr  cclass_t& data() { return _cc; }
+		constexpr const cclass_t& data() const { return _cc; }
+		CClass& operator &=(const CClass& r) { for (size_t i = 0; i < _cc.size(); i++) _cc[i] &= r._cc[i]; return *this; }
+		CClass& operator |=(const CClass& r) { for (size_t i = 0; i < _cc.size(); i++) _cc[i] |= r._cc[i]; return *this; }
+	};
+	static inline constexpr CClass operator~(const CClass& r) { return CClass({ ~r.data()[0],~r.data()[1], ~r.data()[2], ~r.data()[3] }); }
+	static inline constexpr CClass operator&(const CClass& l, const CClass& r) { 
+		return CClass({ l.data()[0] & r.data()[0], l.data()[1] & r.data()[1], l.data()[2] & r.data()[2],  l.data()[3] & r.data()[3] });
 	}
+	static inline constexpr CClass operator|(const CClass& l, const CClass& r) {
+		return CClass({ l.data()[0] | r.data()[0], l.data()[1] | r.data()[1], l.data()[2] | r.data()[2],  l.data()[3] | r.data()[3] });
+	}
+	// because I keep changing CCClass, making these simple wrappers to help
+
+
 	static constexpr CClass letters = make_cclass(crange('A', 'Z'), crange('a', 'z'), '_');
 	static constexpr CClass digits = make_cclass(crange('0', '9'));
 	static constexpr CClass digit_letters = make_cclass(crange('A', 'Z'), crange('a', 'z'), '_', crange('0', '9'));
 	static constexpr CClass all_chars = make_cclass(crange(0, 255));
-	static constexpr CClass dot_chars = make_cclass(crange(0, '\n'-1), crange('\n' + 1,255));
+	static constexpr CClass dot_chars = make_cclass(crange(0, '\n' - 1), crange('\n' + 1, 255));
 
-	static inline cclass_t operator-(const cclass_t& l, const cclass_t& r) {
-		cclass_t cc;
-		std::set_difference(l.begin(), l.end(), r.begin(), r.end(), cc.begin());
+	static inline CClass operator-(const CClass& l, const CClass& r) {
+		CClass cc = l;
+		cc &= ~r;
 		return cc;
 	}
 #if 0
@@ -208,7 +156,7 @@ namespace PascalLexer {
 			 using IntSet = std::set<int>; // sorted int set
 #endif
 			 using InitSet = std::set<int>;
-
+			 using InitSetPtr = std::shared_ptr<InitSet>;
 			 static inline void empty(InitSet& M) { M.clear(); }
 			 static inline void include(InitSet& M, int i) { M.insert(i); }
 			 static inline void exclude(InitSet& M, int i) { M.erase(i); }
@@ -232,55 +180,13 @@ namespace PascalLexer {
 			 static inline bool isempty(const InitSet& M) { return M.empty(); }
 			 static inline bool equal(const InitSet& M, const InitSet& N) { return M == N; }
 			 static inline bool subseteq(const InitSet& M, const InitSet& N) { return std::includes(M.begin(), M.end(), N.begin(), N.end()); }
-
-			 enum class NodeType {
-				 mark,     // (* marker node *)
-				 ch,			//  char_node, (*character node *)
-				 str, // (*string node *)
-				 cclass, // (*character class node *)
-				 star, // (*star node *)
-				 plus, //  (*plus node *)
-				 opt, // (*option node *)
-				 cat, // (*concatenation node *)
-				 alt //  (*alternatives node(| ) *)
-			 };
-			 constexpr const char* NodeTypeString[] = {
-				 "mark",
-				 "ch",
-				 "str",
-				 "cclass",
-				 "star",
-				 "plus",
-				 "opt",
-				 "cat",
-				 "alt"
-			 };
-			 struct Node {
-				 const NodeType node_type;
-			 protected:
-				 Node(NodeType type) : node_type(type) {}
-			 };
-
-			 struct MarkNode : public Node {
-				 int rule;
-				 int pos;
-				 MarkNode(int rule, int pos) : Node(NodeType::mark), rule(rule), pos(pos) {}
-			 };
-			 static inline std::ostream& operator<<(std::ostream&  os, const MarkNode& n) {
-				 os << "#( rule: " << n.rule << " pos: " << n.pos << " ) ";
-				 return os;
-			 }
-			 struct CharNode : public Node {
-				 char c;
-				 CharNode(char c) : Node(NodeType::ch), c(c) {}
-			 };
 			 template<size_t L, size_t R>
-			 static constexpr inline bool inrange(size_t v) { return L >= v && R <= v; }
+			 static constexpr inline bool inrange(size_t v) { return (L >= v) && (R <= v); }
 
 			 template<typename T>
 			 static inline void unescape_stream(std::ostream&  os, T c) {
 				 if (inrange<0, 7>(c) || inrange<14, 31>(c) || inrange<127, 255>(c) || c == 11) {
-					 os << '\\' << (char)('0' + (c / 64)) << (char)('0' + ((c % 64) / 8)) << (char)('0' + (c % 8));
+					 os << '\\' << (char)((c / 64)) << (char)(((c % 64) / 8)) << (char)( (c % 8));
 				 } // not printable
 				 else {
 					 switch (c) {
@@ -291,152 +197,114 @@ namespace PascalLexer {
 					 case '\f': os << "\\f"; break;
 					 case '\\': os << "\\\\"; break;
 					 default:
-						 os << c;
+						 os << (char)c;
 					 }
 				 }
 
 			 }
-			 template<typename T,size_t N>
+			 template<typename T, size_t N>
 			 static inline void unescape_stream(std::ostream&  os, T c, const char(&reserved)[N]) {
-				 for(char r : reserved) 
+				 for (char r : reserved)
 					 if (c == r) {
-						 os << '\\' << c;
+						 os << '\\' << (char)c;
 					 }
 				 unescape_stream(os, c);
 			 }
+
+
+			// class node;
+			 struct mark_node { int rule; int  pos; };
+			 struct char_node { char c; };
+			 struct string_node { std::string str; };
+			 struct cclass_node { CClass cc; };
+			 struct cat_node;
+			 struct alt_node;
+			 struct plus_node;
+			 struct star_node;
+			 struct opt_node;
+			 using node = std::variant< mark_node, char_node, string_node, cclass_node, cat_node, alt_node, plus_node, star_node, opt_node>;
+			 using nodep = std::unique_ptr<node>;
+			 struct cat_node { nodep r1; nodep r2; };
+			 struct alt_node { nodep r1; nodep r2; };
+			 struct plus_node { nodep r; };
+			 struct star_node { nodep r; };
+			 struct opt_node { nodep r; };
+			 static constexpr int NCH = 10000;
+			 static constexpr int RCCL = NCH + 90;
+			 static constexpr int  RNCCL = NCH + 91;
+			 static constexpr int  RSTR = NCH + 92;
+			 static constexpr int  RSCON = NCH + 93;
+			 static constexpr int  RNEWE = NCH + 94;
+			 static constexpr int FINAL = NCH + 95;
+			 static constexpr int  RNULLS = NCH + 96;
+			 static constexpr int  RCAT = NCH + 97;
+			 static constexpr int  STAR = NCH + 98;
+			 static constexpr int  PLUS = NCH + 99;
+			 static constexpr int  QUEST = NCH + 100;
+			 static constexpr int  DIV = NCH + 101;
+			 static constexpr int  BAR = NCH + 102;
+			 static constexpr int  CARAT = NCH + 103;
+			 static constexpr int  S1FINAL = NCH + 104;
+			 static constexpr int  S2FINAL = NCH + 105;
+			 struct mn {
+
+				 int name;
+				 int left;
+				 int right;
+				 int parent;
+				 bool nullstr;
+				 mn(int a, int d, int c);
+				 mn(int a, int d);
+				 mn(int a);
+			 };
+
+			 std::ostream& operator<<(std::ostream& os, const node& n);
+			 inline std::ostream& operator<<(std::ostream& os, const nodep& n) { os << *n; return os; }
+
+			 struct micro_sym{ std::string subst; };
+			 struct start_state_sym { int start_state; };
 		
-			 static inline std::ostream& operator<<(std::ostream&  os, const CharNode& n) {
-				 os  << " c: '";
-				 unescape_stream(os, n.c, "\".^$[]*+?{}|(,)/<>]");
-				 os << '\'';
-				 return os;
-			 }
-			 struct StringNode : public Node {
-				 std::string str;
-				 StringNode(std::string&& cc) : Node(NodeType::str), str(std::move(str)) {}
-				 StringNode(const std::string& cc) : Node(NodeType::str), str(str) {}
+			 struct PosTableEntry {
+				 InitSet follow_pos;
+				 std::variant<char_node, cclass_node, mark_node> pos;
+				 PosTableEntry(char_node&& c) : pos(std::move(c)) {}
+				 PosTableEntry(cclass_node&& c) : pos(std::move(c)) {}
+				 PosTableEntry(mark_node&& c) : pos(std::move(c)) {}
 			 };
-			 static inline std::ostream& operator<<(std::ostream&  os, const StringNode& n) {
-				 os  << " str: \"";
-				 for(char c : n.str)
-					unescape_stream(os, c);
-				 os << '\"';
-				 return os;
-			 }
-			 struct CClassNode : public Node {
-				 CClass cc;
-				 CClassNode(const CClass& cc) : Node(NodeType::cclass), cc(cc) {}
-				 CClassNode(CClass& cc) : Node(NodeType::cclass), cc(cc) {}
+			 struct StateTableEntry {
+				 int* state_pos;
+				 bool final;
+				 int trans_lo, trans_hi;
 			 };
-			 static inline std::ostream& operator<<(std::ostream&  os, const CClassNode& n) {
-				 os << " cc: [";
-				 size_t nc = nchars(n.cc);
-				 if (nc == 254 && !char_in_class(n.cc, '\n'))
-					 os << '.';
-				 else {
-					 cclass_t cc = n.cc;
-					 if (nc > 128) { // more in likly inverted class
-						 os << '^';
-						 cc = all_chars - cc;
-					 }
-					 char c1 = 0;
-					 bool done = false;
-					 for (size_t c1 = 0;  c1< std::numeric_limits<uint8_t>::max(); c1++) {
-						 // faster way to do this is to go over each bit one after another
-						 if (char_in_class(cc, c1)) {
-							 size_t c2 = c1;
-							 while (c2 <= std::numeric_limits<uint8_t>::max() && char_in_class(cc, c2 + 1)) c2++;
-							 if (c1 == c2)
-								 unescape_stream(os, c1, "^-]");
-							 else {
-								 if (c2 == (c1 + 1)) {
-									 unescape_stream(os, c1, "^-]");
-									 unescape_stream(os, c2, "^-]");
-								 }
-								 else {
-									 unescape_stream(os, c1, "^-]");
-									 os << '-';
-									 unescape_stream(os, c2, "^-]");
-								 }
-							 }
-							 c1 = c2;
-						 }
-					 }
-				 }
-				 os << ']';
-				 return os;
+			 
+			 struct TransTableEntry {
+				 CClass* CClassPtr;
+				 int* follow_pos;
+				 int next_state;
+			};
+			 extern std::vector< PosTableEntry> pos_table;
+			 extern std::vector<StateTableEntry> state_table;
+			 extern std::vector<TransTableEntry> trans_table;
+			 extern std::unordered_map<Symbol, std::variant< micro_sym, start_state_sym>> sym_table;
+			 static inline void addCharPos(char c) {
+				 pos_table.emplace_back(char_node { c } );
 			 }
-
-
-			 struct CatNode : public Node {
-				 Node* r1;
-				 Node* r2;
-				 CatNode(Node* r1, Node* r2) : Node(NodeType::cat), r1(r1), r2(r2) {}
-				 ~CatNode() { if (r1) delete r1; if (r2) delete r2; }
+			 static inline  void addCClassPos(CClass cc) {
+				 pos_table.emplace_back(cclass_node { cc } );
+			 }
+			 static inline void addMarkPos(int rule, int pos) {
+				 pos_table.emplace_back( mark_node{ rule, pos });
+			 }
+#if 0
+			 class node : public std::variant<eps_node, mark_node, char_node, string_node, cclass_node, cat_node, alt_node, plus_node, star_node, opt_node>
+			 {
+				 using base = std::variant<eps_node, mark_node, char_node, string_node, cclass_node, cat_node, alt_node, plus_node, star_node, opt_node>;
+				 using base::base;
+				 using base::operator=;
 			 };
+#endif
+			
 
-			 struct AltNode : public Node {
-				 Node* r1;
-				 Node* r2;
-				 AltNode(Node* r1, Node* r2) : Node(NodeType::alt), r1(r1), r2(r2) {}
-				 ~AltNode() { if (r1) delete r1; if (r2) delete r2; }
-			 };
-
-			 struct PlusNode : public Node {
-				 Node* r;
-				 PlusNode(Node* r) : Node(NodeType::plus), r(r) {}
-				 ~PlusNode() { if (r) delete r; }
-			 };
-
-			 struct StarNode : public Node {
-				 Node* r;
-				 StarNode(Node* r) : Node(NodeType::star), r(r) {}
-				 ~StarNode() { if (r) delete r; }
-			 };
-
-			 struct OptNode : public Node {
-				 Node* r;
-				 OptNode(Node* r) : Node(NodeType::opt), r(r) {}
-				 ~OptNode() { if (r) delete r; }
-			 };
-
-
-			 static inline std::ostream& operator<<(std::ostream&  os, const Node& n) {
-				 switch(n.node_type) {
-				 case NodeType::mark: 	 os << static_cast<const MarkNode&>(n); break;
-				 case NodeType::ch: 	 os << static_cast<const CharNode&>(n); break;
-				 case NodeType::str: 	 os << static_cast<const StringNode&>(n); break;
-				 case NodeType::cclass: 	 os << static_cast<const CClassNode &> (n); break;
-				 case NodeType::star: 	 os << static_cast<const StarNode&>(n); break;
-				 case NodeType::plus: 	 os << static_cast<const PlusNode&>(n); break;
-				 case NodeType::opt: 	 os << static_cast<const OptNode&>(n); break;
-				 case NodeType::cat: 	 os << static_cast<const CatNode&>(n); break;
-				 case NodeType::alt: 	 os << static_cast<const AltNode&>(n); break;
-				 }
-				 os << " node_type: " << NodeTypeString[(int)n.node_type];
-				 return os;
-			 }
-
-			 static inline std::ostream& operator<<(std::ostream&  os, const CatNode& n) {
-				 os << "( " << *n.r1 << *n.r2 << ")";
-				 return os;
-			 }
-			 static inline std::ostream& operator<<(std::ostream&  os, const AltNode& n) {
-				 os << *n.r1 << " | " << *n.r2;
-				 return os;
-			 }
-			 static inline std::ostream& operator<<(std::ostream&  os, const StarNode& n) {
-				 os << *n.r << '*';
-				 return os;
-			 }
-			 static inline std::ostream& operator<<(std::ostream&  os, const PlusNode& n) {
-				 os << *n.r << '+';
-				 return os;
-			 }
-			 static inline std::ostream& operator<<(std::ostream&  os, const OptNode& n) {
-				 os << *n.r << '?';
-				 return os;
-			 }
 			 template <char CC>
 			 struct C { static constexpr char c = CC; };
 
@@ -516,18 +384,31 @@ namespace PascalLexer {
 			 class Parser {
 				 Scanner _scanner;
 				 token _token;
+				 size_t n_rules;
+				 std::vector<StateTableEntry> state_table;
+				 std::vector<TransTableEntry> trans_table;
+				 std::unordered_map<Symbol, std::variant< micro_sym, start_state_sym>> sym_table;
 			 public:
-				 Parser() {}
 
-				 Node* prec(Node* r);
-				 Node* expr();
-				 Node* term();
-				 Node* factor();
+				 nodep prec(nodep& r);
+				 nodep expr();
+				 nodep term();
+				 nodep factor();
 				 struct Rule {
 					 bool invert;
-					 Node* nodes;
+					 nodep nodes;
 				 };
 				 Rule parse_rule(int rule_number, std::string_view rule);
+				 void next_section() {}
+				 void define_start_state(std::string_view name,int  pos) {
+					 Symbol sym = name;
+					 if (sym_table.emplace(std::make_pair(name, start_state_sym{ pos })).second) throw "state already exists";
+
+				 }
+
+				 void add_rule(int i, InitSet& FIRST) {
+
+				 }
 			 };
 
 			 struct NFA_Table {

@@ -53,7 +53,7 @@ int main() {
 	PascalLexer::Parser p;
 
 
-	auto rule = p.parse_rule(1, "\\#?[A-Za-z][A-Za-z0-9_]*");
+	auto rule = p.parse_rule(1, "\\#?[A-Za-z][A-Za-z0-9_]*|bob|tree");
 
 #if 0
 	extern DLL_DECL int     mcpp_lib_main(int argc, char ** argv);
@@ -67,7 +67,7 @@ int main() {
 	extern DLL_DECL void    mcpp_use_mem_buffers(int tf);
 	extern DLL_DECL char *  mcpp_get_mem_buffer(OUTDEST od);
 #endif
-	std::cout << *rule.nodes;
+	std::cout << rule.nodes;
 	//std::cout << "Wecomd to hell " << test_one << ", " << test_two << " " << std::endl;
 	std::cout << "we are done!" << std::endl;
 }

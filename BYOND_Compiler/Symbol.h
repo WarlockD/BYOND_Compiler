@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
@@ -52,10 +53,12 @@ namespace _private {
 			friend class TableContainer<T, _HASHER>;
 		public:
 			ref_type(size_t s, size_t h) : _size(s), _hash(h), _next(nullptr) {}
-			const_pointer data() const { return reinterpret_cast<const_pointer>(this) + sizeof(ref_type); }
+#pragma warning(disable:4302)
+			inline const_pointer data() const { return reinterpret_cast<const_pointer>(reinterpret_cast<const uint8_t>(this) + sizeof(ref_type)); }
 			size_t size() const { return _size; }
 			size_t hash() const { return _hash; }
 		};
+
 		static constexpr size_t  ref_size = sizeof(ref_type);
 		using ref_pointer = ref_type * ;
 
@@ -87,13 +90,13 @@ namespace _private {
 		static inline constexpr size_t align_up(size_t num) { return  (num+sizeof(uintptr_t) -1) & ~(sizeof(uintptr_t) -1);  }
 		// special case for string view
 		ref_pointer _newref(const_pointer  d, size_t s, size_t h) {
-			size_t total_size = ref_size + (type_size * s); // include zero for string
-			if constexpr (type_size == 1) total_size++; // an array? incrment it for the zero
+			size_t total_size = ref_size + (type_size * s) ; // include zero for string
+			if  (type_size == 1) total_size++; // an array? incrment it for the zero
 			total_size = align_up(total_size); // allign it to pointers
 			char* data = new char[total_size];
 			pointer str = reinterpret_cast<pointer>(data + ref_size);
 			std::copy_n(d, s, str);
-			if constexpr (type_size == 1) str[s] = type{};
+			if  (type_size == 1) str[s] = type{};
 			return new(data) ref_type(s, h);
 		}
 
@@ -147,11 +150,11 @@ class Symbol : public HashInterface<Symbol>
 		size_t operator()(const char* d, size_t s) {
 			if (s < 5) {
 				size_t h = 0;
-				if (h < 5) h |= (d[4]);
-				if (h < 4) h |= (d[0] << 8);
-				if (h < 3) h |= (d[0] << 16);
-				if (h < 2) h |= (d[0] << 24);
-				if (h < 1) h |= (d[4]);
+				if (h < 5) h |= ((size_t)d[4]);
+				if (h < 4) h |= ((size_t)d[3] << 24);
+				if (h < 3) h |= ((size_t)d[2] << 16);
+				if (h < 2) h |= ((size_t)d[1] << 8);
+				if (h < 1) h |= ((size_t)d[0]);
 				return h;
 			}
 			else {
@@ -178,8 +181,8 @@ public:
 	// wew have to atleast override moves because of _empty but lets do them all
 	inline Symbol(const Symbol& copy) : Symbol(copy._ref) {}
 	inline Symbol& operator=(const Symbol& copy) { _ref = copy._ref; return *this; }
-	inline Symbol(Symbol&& move) : Symbol(move._ref) { move._ref = _strtbl._empty; }
-	inline Symbol& operator=(Symbol&& move) { _ref = move._ref; move._ref = _strtbl._empty;  return *this; }
+	inline Symbol(Symbol&& move)noexcept : Symbol(move._ref) { move._ref = _strtbl._empty; }
+	inline Symbol& operator=(Symbol&& move) noexcept { _ref = move._ref; move._ref = _strtbl._empty;  return *this; }
 
 	// const char* c_str() const { return _str->str.data(); } // in theory its 0 terminated, but honestly this dosn't matter in symbols
 	size_t hash() const { return _ref->hash(); }
@@ -190,7 +193,13 @@ public:
 	int compare(const Symbol& r) const { return _ref == r._ref ? 0 : str().compare(r.str()); }
 	inline bool operator==(const Symbol& r) const { return _ref == r._ref; }
 	inline bool operator!=(const Symbol& r) const { return _ref != r._ref; }
+	void print(std::ostream& os) { os << str(); 	}
 };
+static inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
+	os << s.str();
+	return os;
+}
+
 namespace std {
 	template<>
 	struct hash<Symbol> {
@@ -201,10 +210,7 @@ namespace std {
 		bool operator()(const Symbol& l, const Symbol& r) const { return l.compare(r) == 0; }
 	};
 }
-static inline std::ostream& operator<<(std::ostream& os, const Symbol& s) {
-	os << s.str();
-	return os;
-}
+
 template<typename T>
 class array_view {
 public:
@@ -223,7 +229,7 @@ public:
 	size_t size() const { return _size; }
 	const_pointer data() const { return _data; }
 };
-
+#if 0
 class SymbolList : public HashInterface<SymbolList>
 {
 	struct _hasher {
@@ -251,27 +257,30 @@ public:
 	// wew have to atleast override moves because of _empty but lets do them all
 	inline SymbolList(const SymbolList& copy) : SymbolList(copy._ref) {}
 	inline SymbolList& operator=(const SymbolList& copy) { _ref = copy._ref; return *this; }
-	inline SymbolList(SymbolList&& move) : SymbolList(move._ref) { move._ref = singleton()._empty; }
-	inline SymbolList& operator=(SymbolList&& move) { _ref = move._ref; move._ref = singleton()._empty;  return *this; }
+	inline SymbolList(SymbolList&& move) noexcept  : SymbolList(move._ref)  { move._ref = singleton()._empty; }
+	inline SymbolList& operator=(SymbolList&& move) noexcept { _ref = move._ref; move._ref = singleton()._empty;  return *this; }
 
-
+	const Symbol* data() const { return _ref->data(); }
 	Symbol operator[](size_t i) const { return data()[i]; }
 	Symbol at(size_t i) const { return data()[i]; }
 	const Symbol* begin() const { return data(); }
 	const Symbol* end() const { return data()+size(); }
 	// const char* c_str() const { return _str->str.data(); } // in theory its 0 terminated, but honestly this dosn't matter in symbols
 	size_t hash() const { return _ref->hash(); }
-	const Symbol* data() const { return _ref->data(); }
+
 	size_t size() const { return _ref->size(); }
 	int compare(const SymbolList& r) const { return data() == r.data() ? 0: -1; }
 	inline bool operator==(const SymbolList& r) const { return _ref == r._ref; }
 	inline bool operator!=(const SymbolList& r) const { return _ref != r._ref; }
 	void print(std::ostream& os, char delm = '/') {
-		for (size_t i = 0; i < size(); i++)
-			os << delm << at(i);
+		for (size_t i = 0; i < size(); i++) {
+			os << delm;
+			at(i).print(os);
+		}
+		
 	}
 };
-
+#endif
 #if 0
 
 class Symbol : public HashInterface<Symbol>
