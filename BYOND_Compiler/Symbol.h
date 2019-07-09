@@ -6,6 +6,10 @@
 #include <vector>
 #include <cassert>
 #include <random>
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <variant>
 
 // just because we got so many of these
 template<typename T>
@@ -228,6 +232,67 @@ public:
 	array_view(T(&d)[S]) : array_view(d, S) {}
 	size_t size() const { return _size; }
 	const_pointer data() const { return _data; }
+};
+class token {
+	int pos;
+	Symbol name;
+};
+struct indent_t { int ident; };
+struct string_t { Symbol str;  };
+struct tok { int value;  };
+using token = std::variant<tok, Symbol, indent_t, indent_t, int,float>;
+struct line_t {
+	int lineno;
+	int ident;
+	std::vector<token> tokens;
+};
+
+class file {
+	std::string _filename;
+	std::string data;
+	std::vector< line_t> lines;
+	enum class STATE {
+		IDENT,
+		STRING,
+		COMMENT
+	};
+	size_t count_spaces(std::string& lilne, size_t& pos) {
+
+	}
+public:
+	file(std::istream& input) : _lineno(0), _pos(0) {
+		STATE state = STATE::IDENT;
+		size_t current_line = 0;
+		for (std::string line; std::getline(input, line); ) {
+			size_t pos = 0;
+			line_t line_tokens;
+			line_tokens.lineno = ++current_line;
+			line_tokens.ident = 0;
+			for (char c : line) {
+				switch (c) {
+				case ' ':
+				case '\t':
+					switch (state) {
+
+					}
+
+
+				}
+			}
+			while(isspace(line[pos])
+			sum += std::stoi(line);
+		}
+
+		std::string line;
+		do {
+			std::getline(fs, line);
+			fs.tellg
+		} while (true);
+		while () {
+
+		}
+		std::getline()
+	}
 };
 #if 0
 class SymbolList : public HashInterface<SymbolList>

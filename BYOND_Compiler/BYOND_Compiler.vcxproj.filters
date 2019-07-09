@@ -16,21 +16,16 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ccp_processor.cpp" />
-    <ClCompile Include="Symbol.cpp" />
-    <ClCompile Include="cplex.cpp" />
-    <ClCompile Include="CCPLexer.cpp" />
+    <ClCompile Include="Lex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccp_processor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Symbol.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ExprParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CPPLex.hpp">
+    <ClInclude Include="Lex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -19,17 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CCPLexer.cpp" />
     <ClCompile Include="ccp_processor.cpp" />
-    <ClCompile Include="cplex.cpp" />
+    <ClCompile Include="Lex.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Symbol.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccp_processor.h" />
-    <ClInclude Include="CPPLex.hpp" />
     <ClInclude Include="ExprParser.h" />
-    <ClInclude Include="Symbol.h" />
+    <ClInclude Include="Lex.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -55,7 +52,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
