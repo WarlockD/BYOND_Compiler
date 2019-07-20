@@ -1,10 +1,86 @@
-#include "Lex.hpp"
+
 #include <exception>
 #include <cassert>
 #include <cstdarg>
 #include <cstring>
+#include "Lex.hpp"
 
+bool debug = true;
+void OldLex::statistics() {
 
+}
+void OldLex::tail() {
+
+}
+void OldLex::head2() {
+
+}
+void OldLex::head1() {
+
+}
+void OldLex::follow(node_t n, node_t p) {
+	if(n == tptr)
+	std::visit(
+		[&](auto& arg) {
+			using T = std::decay_t<decltype(arg)>;
+			/* will not be CHAR RNULLS FINAL S1FINAL S2FINAL RCCL RNCCL */
+			if constexpr (std::is_same_v<T, RSTR>) {
+				if (!n->tempstat) {
+					n->tempstat = true; count++;
+				}
+			}
+			else if constexpr (std::is_same_v<T, STAR> || std::is_same_v<T, PLUS>) {
+				first(n); follow(p);
+			}
+			else if constexpr (std::is_same_v<T, BAR> || std::is_same_v<T, QUEST> || std::is_same_v<T, RNEWE>) {
+				follow(p);
+			}
+			else if constexpr (std::is_same_v<T, RCAT> || std::is_same_v<T, DIV>) {
+				if (v == p->left()) {
+					//if (nullstr[right[p]])
+				//		follow(p);
+					first(p->right();
+				}
+			}
+			else
+				static_assert(always_false<T>::value, "non-exhaustive visitor!");
+		}, n->value());
+}
+void OldLex::first(node_t n) {
+	std::visit(
+		[&](auto& arg) {
+			using T = std::decay_t<decltype(arg)>;
+			if constexpr (std::is_same_v<T, CCHAR> || std::is_same_v<T, RCCL> || std::is_same_v<T, RNCCL> || std::is_same_v<T, FINAL> || std::is_same_v<T, S1FINAL> || std::is_same_v<T, S2FINAL>) {
+				if (!n->tempstat) {
+					n->tempstat = true; count++;
+				}
+			}
+			else if constexpr (std::is_same_v<T, BAR> || std::is_same_v<T, RNEWE>) {
+				first(arg.left); first(arg.right);
+			}
+			else if constexpr (std::is_same_v<T, CARAT>) {
+				if (stnum % 2 == 1)
+					first(arg.left);
+			}
+			else if constexpr (std::is_same_v<T, RSCON>) {
+				int i = stnum / 2 + 1;
+				for (char_t c : *arg.str) {
+					if (c == i) {
+						first(arg.left);
+						break;
+					}
+				}
+			}
+			else if constexpr (std::is_same_v<T, STAR> || std::is_same_v<T, QUEST> || std::is_same_v<T, PLUS> || std::is_same_v<T, RSTR>) {
+				first(arg.left);
+			}
+			else if constexpr (std::is_same_v<T, RCAT> || std::is_same_v<T, DIV>) {
+				first(arg.left);
+			}	
+			else
+				static_assert(always_false<T>::value, "non-exhaustive visitor!");
+		}, n->value());
+}
 void OldLex::error(const char*s, ...)
 {
 	char buffer[1024];
@@ -160,98 +236,10 @@ void OldLex::cclinter(bool sw) {
 			if (m)ccount++;
 		}
 	}
-	return;
-}
-OldLex::node::node(int n, nodep l, nodep r) : name(n), _left(l), _right(r), parent(nullptr), nullstr(false) {
-	switch (n) {
-	case BAR:
-	case RNEWE:
-		if (l->nullstr || r->nullstr) nullstr = true;
-		l->parent = r->parent = this->shared_from_this();
-		break;
-	case RCAT:
-	case DIV:
-		if (l->nullstr && r->nullstr) nullstr = true;
-		l->parent = r->parent = this->shared_from_this();
-		break;
-	default:
-#ifdef _DEBUG
-		throw std::string("bad switch mn2 ") + std::to_string(n);
-		//warning("bad switch mn2 %d %d", a, d);
-		break;
-#endif	
-	};
 }
 
-OldLex::node::node(int n, nodep l, std::string_view  r) {
-	switch (n) {
-	case RSTR:
-		l->parent = this->shared_from_this();
-		break;
-	case RSCON:
-		l->parent = this->shared_from_this();
-		nullstr = l->nullstr;
-		break;
-	default:
-#ifdef _DEBUG
-		throw std::string("bad switch mn2 ") + std::to_string(n);
-		//warning("bad switch mn2 %d %d", a, d);
-		break;
-#endif	
-	};
-}
-OldLex::node::node(int n, nodep l) : name(n), _left(l), _right(nullptr), parent(nullptr), nullstr(false) {
-	switch (n) {
-	case STAR:
-	case QUEST:
-		nullstr = true;
-		l->parent = this->shared_from_this();
-		break;
-	case PLUS:
-	case CARAT:
-		nullstr = l->nullstr;
-		l->parent = this->shared_from_this();
-		break;
-	case S2FINAL:
-		nullstr = true;
-		break;
-# ifdef _DEBUG
-	case FINAL:
-	case S1FINAL:
-		break;
-	default:
-		throw std::string("bad switch mn1 ") + std::to_string(n);
-		//warning("bad switch mn1 %d %d", a, d);
-		break;
-# endif
-	}
-}
-OldLex::node::node(int n, std::string_view l) : name(n), _left(l), _right(nullptr), parent(nullptr), nullstr(false) {
-	switch (n) {
-	case RCCL:
-	case RNCCL:
-		if (l.size() == 0) nullstr = true;
-		break;
-# ifdef _DEBUG
-	case FINAL:
-	case S1FINAL:
-		break;
-	default:
-		throw std::string("bad switch mn1 ") + std::to_string(n);
-		//warning("bad switch mn1 %d %d", a, d);
-		break;
-# endif
-	}
-}
-OldLex::node::node(int n) : name(n), _left(std::shared_ptr<node>(nullptr)), _right(nullptr), parent(nullptr), nullstr(RNULLS == n) {
-# ifdef _DEBUG
-	if (n >= NCH) {
-		throw std::string("bad switch mn0 ") + std::to_string(n);
-		//warning("bad switch mn1 %d %d", a, d);
-	}
-# endif
-}
-OldLex::nodep OldLex::node::dup() const {
+
+#if 0
 	/* duplicate the subtree whose root is n, return ptr to it */
 	if (name < NCH) return  std::make_shared<node>(name);
 	switch (name) {
@@ -266,7 +254,8 @@ OldLex::nodep OldLex::node::dup() const {
 	case BAR: case RNEWE: case RCAT: case DIV:
 		return std::make_shared<node>(name, left()->dup(), right()->dup());
 	}
-}
+#endif
+
 
 
 # ifdef _DEBUG
@@ -295,7 +284,6 @@ void OldLex::allprint(int c) {
 			putchar(c);
 		break;
 	}
-	return;
 }
 
 
@@ -328,9 +316,10 @@ void OldLex::sect1dump() {
 }
 void OldLex::sect2dump() {
 	printf("Sect 2:\n");
-	treedump();
+	tptr->treedump();
 }
-void OldLex::treedump(node::nodep t, size_t ident) {
+void OldLex::node::treedump(size_t ident) {
+#if 0
 	if (ident) 	for (size_t i = 0; i < ident; i++) putchar(' ');
 #if 0
 	printf("%4d ", t);
@@ -422,9 +411,8 @@ void OldLex::treedump(node::nodep t, size_t ident) {
 	}
 	if (t->nullstr) printf("\t(null poss.)");
 	putchar('\n');
+#endif
 }
-void OldLex::treedump() {
-	node::nodep t = tptr;
-	treedump(t, 0);
-}
+
 # endif
+
