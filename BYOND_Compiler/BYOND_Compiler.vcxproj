@@ -27,6 +27,7 @@
     <ClInclude Include="ccp_processor.h" />
     <ClInclude Include="ExprParser.h" />
     <ClInclude Include="Lex.hpp" />
+    <ClInclude Include="tao\pegtl.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

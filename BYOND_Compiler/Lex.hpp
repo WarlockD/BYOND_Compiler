@@ -15,336 +15,132 @@
 #include <string_view>
 #include <set>
 #include <type_traits>
+#include <string>
+#include <functional>
+#include <iostream>
+#include <optional>
+#include <stack>
 
-class OldLex {
-	constexpr static int CWIDTH = 8;
-	constexpr static int CMASK = 0377;
-	constexpr static int NCH = 128;
-	constexpr static int ctable[2 * NCH] = {
-0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
-10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
-60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
-70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
-90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-100,101,102,103,104,105,106,107,108,109,
-110,111,112,113,114,115,116,117,118,119,
-120,121,122,123,124,125,126,127 };
+#include <sstream>
 
-	constexpr static int  TOKENSIZE = 1000;
-	constexpr static int DEFSIZE = 40;
-	constexpr static int DEFCHAR = 1000;
-	constexpr static int STARTCHAR = 100;
-	constexpr static int STARTSIZE = 256;
-	constexpr static int CCLSIZE = 1000;
-	constexpr static int TREESIZE = 1000;
-	constexpr static int NSTATES = 500;
-	constexpr static int MAXPOS = 2500;
-	constexpr static int NTRANS = 2000;
-	constexpr static int NOUTPUT = 3000;
-	constexpr static int NACTIONS = 100;
-	constexpr static int ALITTLEEXTRA = 30;
+using string_t = std::shared_ptr<std::string>;
 
-	enum Section {
-		DEFSECTION = 1,
-		RULESECTION = 2,
-		ENDSECTION = 5,
+static inline constexpr int toKind(char c) { return static_cast<uint8_t>(c); }
+static inline constexpr int toKind(const char c[2]) { return (static_cast<uint8_t>(c[1]) << 8) || static_cast<uint8_t>(c[0]); }
+static inline constexpr int toKindIdent(size_t i,char c = ' ') { return static_cast<uint16_t>(c)<< 16 | static_cast<uint8_t>(c); }
+static inline constexpr uint16_t getKind(int i) { return static_cast<uint16_t>(i); }
+static inline constexpr uint16_t getIdent(int i) { return static_cast<uint16_t>(i >> 16); }
+
+class FilePosition {
+	string_t _filename;
+	size_t _line;
+	size_t _pos;
+public:
+	FilePosition(string_t filename, size_t line, size_t pos) : _filename(filename), _line(line), _pos(pos) {}
+	size_t pos() const { return _pos; }
+	size_t lineno() const { return _line; }
+	const string_t& filename() const { return _filename; }
+	bool operator==(const FilePosition& r) const { return _filename == r._filename && _line == r._line && _pos == r._pos; }
+	friend class Lexer;
+};
+
+class Token {
+	int _kind;
+	std::string_view _str;
+	FilePosition _fpos;
+public:
+	Token(int kind, std::string_view str, FilePosition fpos) : _kind(kind), _str(str), _fpos(fpos) {}
+	int kind() const { return _kind; }
+	std::string_view str() const { return _str; }
+	const FilePosition& pos() const { return _fpos; }
+	bool operator==(const int l) const { return _kind == l ; }
+	bool operator!=(const int l) const { return _kind != l; }
+};
+
+class File {
+	std::unique_ptr<std::istream> _ss;
+	string_t _filename; // or macro
+	size_t _lineno;
+	template<typename T>
+	File(T* p, string_t filename) : _ss(std::unique_ptr<std::istream>(p)), _filename(filename), _lineno(0){}
+public:
+	File() : _ss(nullptr), _filename(nullptr), _lineno(0){}
+	static File open_file(string_t filename) {
+		std::fstream* f = new std::fstream(*filename, std::ios::in);
+		if (!f->good()) {
+			delete f;
+			throw 0; // fix this
+		}
+		return std::move(File(f, filename));
+	}
+	static File open_string(string_t s) {
+		return std::move(File(new std::istringstream(*s),nullptr));
+	}
+	bool is_file() const { return _filename != nullptr; }
+	string_t filename() const { return _filename; }
+	operator std::istream& () { return *_ss; }
+	std::istream* operator->() { return _ss.get(); }
+	std::optional<size_t> read_line(std::string& line) {
+		while (_ss->eof() || _ss->bad()) {
+			int ch;
+			bool line_empty = true;
+			_lineno++;
+			while ((ch = _ss->get()) != -1 && (ch != '\r') && (ch != 'n')) {
+				if (!isspace(ch)) line_empty = false;
+				line.push_back(ch);
+			}
+			int peek = _ss->peek();
+			if (ch != peek && (peek == '\r' || peek == '\n'))
+				_ss->get();// skip windows line endings
+			if (!line_empty) break; // skip blank lines
+		}
+		if (line.empty()) return std::nullopt;
+		else return _lineno;
+	}
+};
+using tokenrow_t = std::vector<Token>;
+
+class Lexer {
+	// Ok, kind of meh, but its a quick and dirrty symbol table
+	std::unordered_map<std::string_view, string_t> _symbols;
+	std::stack<File> _fileStack;
+	// 
+	string_t lookup(std::string_view s) {
+		auto it = _symbols.find(s);
+		if (it != _symbols.end()) return it->second;
+		auto str = std::make_shared<std::string>(s);
+		_symbols.emplace(std::pair(*str, str));
+		return str;
+	}
+	struct Define {
+		string_t name;
+		std::vector<string_t> _args;
+		std::vector< Token> line;
 	};
-	constexpr static int  PC = 1;
-	constexpr static int  PS = 1;
+	size_t _ifStack;
 
-	int ccount = 1;
-	int casecount = 1;
-	int aptr = 1;
-	int nstates = NSTATES, maxpos = MAXPOS;
-	int treesize = TREESIZE, ntrans = NTRANS;
-	int yytop;
-	int outsize = NOUTPUT;
-	int sptr = 1;
-	bool optim = true;
-	int report = 2;
-	char buf[520];
-	int ratfor;		/* 1 = ratfor, 0 = C */
-	int yyline;		/* line number of file */
-	bool eof;
-	bool lgatflg;
-	int divflg;
-	int funcflag;
-	int pflag;
-	bool chset;	/* 1 = char set modified */
-	using char_t = char;
-	using cclass_t = const std::shared_ptr<std::set<char_t>>;
-	using string_t = const std::shared_ptr<std::string>;
-
-	enum TYPE {
-		CCHAR = -1,
-		RCCL = NCH + 90,
-		RNCCL,
-		RSTR,
-		RSCON,
-		BAR,
-		RNEWE,
-		DIV,
-		RCAT,
-		STAR,
-		QUEST,
-		PLUS,
-		RNULLS,
-		CARAT,
-		S2FINAL,
-		FINAL,
-		S1FINAL,
-		EMPTY
-	};
-	
-
-
-	template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-	template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;
-
-	class node : std::enable_shared_from_this<node> {
-	public:
-		using pointer = std::shared_ptr<node>;
-		struct LEAF { pointer left; };
-		struct BRANCH : LEAF { pointer right; };
-		struct SLEAF : LEAF { string_t str; };
-		using value_t = std::variant<std::monostate, char_t, cclass_t, LEAF, BRANCH, SLEAF>;
-
-		template<typename T, typename ...P>
-		static pointer create(P...p) { return std::make_shared<node>(T{ std::forward<P>(p)... }); }
-	private:
-		TYPE _type;
-		value_t _value;
-		pointer _parent;
-		bool _nullstr;
-		bool tempstat;
-		node(TYPE type, value_t&& v, pointer p, bool nullstr) : _parent(p), tempstat(false), _nullstr(nullstr), _value(std::move(v)) {}
-		void setParent(pointer p) { _parent = p; }
-	public:
-		node() : _parent(nullptr), tempstat(false), _nullstr(false), _value(std::monostate{}) {}
-
-		const value_t& value() const { return _value; }
-		value_t& value() { return _value; }
-		operator const value_t& () const { return _value; }
-		operator value_t& () { return _value; }
-		/// creators
-		// ok lets try this
-		const pointer& parent() const { return _parent; }
-		bool nullstr() const { return _nullstr; }
-		const string_t str() const {
-			return std::visit([](auto&& arg) {
-				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_base_of_v<T, SLEAF>)
-					return arg.str;
-				else
-					return nullptr;
-				}, _value);
-		}
-		const pointer right() const {
-			return std::visit([](auto&& arg) -> const pointer {
-				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_same_v<T, BRANCH>)
-					return arg.right;
-				else
-					static_assert(always_false<T>::value, "non-exhaustive visitor!");
-				}, _value);
-		}
-		const pointer left() const {
-			return std::visit([](auto&& arg) -> const pointer {
-				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_base_of_v<T, LEAF>)
-					return arg.right;
-				else
-					static_assert(always_false<T>::value, "non-exhaustive visitor!");
-				//return nullptr;
-				}, _value);
-		}
-		static pointer create(TYPE t, pointer l, pointer r, pointer p = nullptr) {
-			switch (t) {
+	bool read_row(tokenrow_t& tokens) {
 #if 0
-			case TYPE::RSTR:
-				l->setParent(p);
-				return std::make_shared<node>(t, BRANCH{ l, r }, nullptr, false);
-			case TYPE::RSCON:
-				l->setParent(p);
-				return std::make_shared<node>(t, BRANCH{ l, r }, nullptr, l->nullstr());
+		std::string line;
+		while(_fileStack.empty()) {
+			File& file = _fileStack.top();
+			auto lineno = file.read_line(line);
+			if (lineno.has_value()) {
+				FilePosition pos(file.filename(), lineno.value(), 0);
+
+
+
+			}
+		} while (line.empty());
 #endif
-			case TYPE::BAR: case TYPE::RNEWE:
-				l->setParent(p); r->setParent(p);
-				return std::make_shared<node>(t, BRANCH{ l, r }, nullptr, l->nullstr() || r->nullstr());
-			case TYPE::RCAT: case TYPE::DIV:
-				l->setParent(p); r->setParent(p);
-				return std::make_shared<node>(t, BRANCH{ l, r }, nullptr, l->nullstr() && r->nullstr());
-			default:
-				throw 0;
-			}
-		}
-		static pointer create(TYPE t, pointer l, string_t r, pointer p = nullptr) {
-			switch (t) {
-			case TYPE::RSTR:
-				l->setParent(p);
-				return std::make_shared<node>(t, SLEAF{ l, r }, nullptr, false);
-			case TYPE::RSCON:
-				l->setParent(p);
-				return std::make_shared<node>(t, SLEAF{ l, r }, nullptr, l->nullstr());
-			default:
-				throw 0;
-			}
-		}
-		static pointer create(TYPE t, cclass_t cc, pointer p = nullptr) {
-			switch (t) {
-			case TYPE::RCCL:case TYPE::RNCCL:
-				return std::make_shared<node>(t, cc, nullptr, cc->empty());
-			default:
-				throw 0;
-			}
-		}
-		static pointer create(TYPE t, pointer l, pointer p=nullptr) {
-			switch (t) {
-			case TYPE::STAR:case TYPE::QUEST:
-				l->setParent(p);
-				return std::make_shared<node>(t, LEAF{ l }, nullptr, true);
-			case TYPE::PLUS:case TYPE::CARAT:
-				l->setParent(p);
-				return std::make_shared<node>(t, LEAF{ l }, nullptr, l->nullstr());
-			case TYPE::S2FINAL:
-				return std::make_shared<node>(t, std::monostate{}, nullptr, true);
-				break;
-# ifdef _DEBUG
-			case TYPE::FINAL:
-			case TYPE::S1FINAL:
-				return std::make_shared<node>(t, std::monostate{}, nullptr, false);
-				break;
-# endif
-			default:
-				throw 0;
-			}
-		}
-		static pointer create(TYPE t, char_t c, pointer p=nullptr) {
-			return std::make_shared<node>(t, c, nullptr, t == TYPE::RNULLS ? true : false);
-		}
+		return false;
+	}
+public:
+};
 
 
-
-		void treedump(size_t ident = 0);
-
-
-		template<typename T>
-		constexpr bool is() const { return std::holds_alternative<T>(_value); }
-
-		pointer dup() const {
-			switch (_type) {
-			case TYPE::RNULLS: case TYPE::CCHAR:
-				return create(_type, std::get<char_t>(_value));
-			case TYPE::RCCL: case TYPE::RNCCL: 
-				return create(_type, std::get<cclass_t>(_value));
-			case TYPE::FINAL: case TYPE::S1FINAL: case TYPE::S2FINAL:
-				return create(_type, left());
-			case TYPE::STAR: case TYPE::QUEST: case TYPE::PLUS:case TYPE::CARAT:
-				return create(_type, left()->dup());
-			case TYPE::RSTR: case TYPE::RSCON:
-				return create(_type, left()->dup(),str());
-			case TYPE::BAR: case TYPE::RNEWE: case TYPE::RCAT:case TYPE::DIV:
-				return create(_type, left()->dup(), right()->dup());
-			default:
-				throw 0;
-			}
-		}
-
-	};
-	using node_t = node::pointer;
-
-	void first(node_t n);
-	void follow(node_t n);
-
-	static constexpr size_t  LINESIZE = 110;
-	int yydebug;
-	int debug;		/* 1 = on */
-	int charc;
-	std::ostream* debugout;
-
-
-	node::pointer tptr;
-	char slist[STARTSIZE];
-	char** def, ** subs, * dchar;
-	char** sname, * schar;
-	char* ccl;
-	char* ccptr;
-	char* dp, * sp;
-	int dptr;
-	char* bptr;		/* store input position */
-	char* tmpstat;
-	int count;
-	int** foll;
-	int* nxtpos;
-	int* positions;
-	int* gotof;
-	int* nexts;
-	char* nchar;
-	int** state;
-	int* sfall;		/* fallback state num */
-	char* cpackflg;		/* true if state has been character packed */
-	int* atable;
-	int nptr;
-	char symbol[NCH];
-	char cindex[NCH];
-	int xstate;
-	int stnum;
-	char match[NCH];
-	char extra[NACTIONS];
-	char* pchar, * pcptr;
-	int pchlen = TOKENSIZE;
-	long rcount;
-	int* verify, * advance, * stoff;
-	int scon;
-	char* psave;
-
-
-	// header
-	void statistics();
-	void tail();
-	void head2();
-	void head1();
-	// string get
-	int	ZCH = NCH;
-	std::queue<std::string> filelist;
-	int	sect = DEFSECTION;
-	int	prev = '\n';	/* previous input character */
-	int	pres = '\n';	/* present input character */
-	int	peek = '\n';	/* next input character */
-	std::queue<int> unputq;
-	char* slptr = slist;
-	std::ostream* fout;
-	std::ostream* errorf;
-	std::istream* fin;
-	std::istream* fother;
-
-
-	void munput(int c) { unputq.push(c); }
-	void munput(const std::string_view s) { for (const auto& c : s) munput(c); }
-
-	void cpyact();  /* copy C action to the next ; or closing } */
-	int gch();
-	int yylex();
-	bool getl(std::string& p);
-
-	void error(const char* s, ...);
-	void warning(const char* s, ...);
-	void lgate();
-	void cclinter(bool noinvert);
-	inline static void ident_line(size_t len = 0) { while (len--) putchar(' '); }
-
-	static void allprint(int c);
-	inline static void allprint(const std::string_view& s, size_t ident = 0) { ident_line(ident);  for (const auto& c : s) allprint(static_cast<int>(c)); }
-
-	void sect1dump();
-	void sect2dump();
-
-
+#if 0
+namespace _private {
 
 	template<typename T>
 	int ctrans(T& ss)
@@ -402,3 +198,4 @@ class OldLex {
 		return nullptr;
 	}
 };
+#endif
