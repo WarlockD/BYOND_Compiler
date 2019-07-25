@@ -27,7 +27,9 @@
     <ClInclude Include="ccp_processor.h" />
     <ClInclude Include="ExprParser.h" />
     <ClInclude Include="Lex.hpp" />
-    <ClInclude Include="tao\pegtl.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -83,7 +85,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\mcpp;$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)..\mcpp;C:\Users\warlo\source\repos\BYOND_Compiler\BYOND_Compiler\src;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\warlo\source\repos\BYOND_Compiler\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

@@ -5,10 +5,10 @@
 #include <stack>
 #include <filesystem>
 
-#include "Lex.hpp"
+#include "ExprParser.h"
 
 
-int main() {
-
-
+int main(int argc, char** argv)
+{
+	return byond_compiler::test_it(argc, argv);
 }

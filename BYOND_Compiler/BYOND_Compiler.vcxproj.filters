@@ -31,8 +31,8 @@
     <ClInclude Include="Lex.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tao\pegtl.hpp">
-      <Filter>tao</Filter>
-    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
   </ItemGroup>
 </Project>
