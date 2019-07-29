@@ -101,7 +101,7 @@ namespace byond_compiler {
 
 		struct hash : seq<bol, one<'#'>> {};
 		struct macro_line : until<sor<disable<string<'/','/'>>,eolf>> {}; //  until < star<sor<line_comment, eolf> >>{};
-		struct define_assignment : seq< name, discard<sep>, macro_line, disable<sep>> {};
+		struct define_assignment : seq< name, sep, macro_line, sep> {};
 		struct define_statment : if_must<seq<hash, key_define, sep>, define_assignment> {};
 
 		struct something : sor<  define_statment, normal_line > {};
