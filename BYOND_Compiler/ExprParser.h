@@ -43,7 +43,8 @@ namespace byond_compiler {
 
 	template< char Q >
 	struct short_string : if_must< one< Q >, until< one< Q >, character > > {};
-	struct literal_string : sor< short_string< '"' >, short_string< '\'' > > {};
+	struct literal_string : short_string< '"' > {};
+	struct literal_char : short_string< '\'' >  {};
 
 	template< typename E >
 	struct exponent : opt_must< E, opt< one< '+', '-' > >, plus< digit > > {};
@@ -99,11 +100,15 @@ namespace byond_compiler {
 		struct parameter_list : sor< ellipsis, parameter_list_one > {};
 #endif
 
-		struct hash : seq<bol, one<'#'>> {}; // We are in the start of a preprocessor statment
-		struct macro_line : list<until<eol>, seq<one<'/'>, eol>> {};
-	
+		struct hash : one<'#'> {}; // We are in the start of a preprocessor statment
+		struct double_hash : two<'##'> {};
+		struct macro_tokens : sor<literal_string, name, hash, double_hash, not_one<'\\'>, seps> {};
+		struct macro_line : until<eol, macro_tokens> {};
+
+		struct macro_lines	: if_must< seq<one< '\\' >,eol>, seq<one< '\\' >, eol>, macro_line > {};
+
 			//until<sor<disable<string<'/','/'>>,eolf>> {}; //  until < star<sor<line_comment, eolf> >>{};
-		struct define_assignment : seq<must_blank, name, must_blank, macro_line> {};
+		struct define_assignment : seq<must_blank, name, must_blank, macro_lines> {};
 
 		struct macro_arg : name {};
 		struct macro_list : list< macro_arg, one< ',' >, blank > {};
@@ -113,7 +118,7 @@ namespace byond_compiler {
 		struct define_statment : seq<hash, key_define, plus<blank>, define_name,sor<define_macro_arguments,star<blank>>,  macro_line> {};
 
 		struct normal_line : seq< bol, until<eolf> > {};
-		struct something : sor<  define_statment, normal_line > {};
+		struct something : seq<bol, sor<  define_statment, normal_line >> {};
 		struct grammar : until< eof, must< something > > {};
 
 		// symbol table for the preprocessor
@@ -205,12 +210,25 @@ namespace byond_compiler {
 	};
 	static inline int test_it(int argc, char** argv)
 	{
+		const std::size_t issues_found = tao::pegtl::analyze<  preprocessor::grammar >();
 		for (int i = 1; i < argc; ++i) {
 			file_input in(argv[i]);
 			preprocessor::state st;
 			parse< preprocessor::grammar, preprocessor::action >(in, st);
 			for (const auto& j : st.symbol_table) {
-				std::cout << j.first << " = "<< std::endl;
+				std::cout << j.first;
+				if (j.second.args.size() > 0) {
+					std::cout << '(';
+					bool comma = true;
+					for (const auto& a : j.second.args) {
+						if (comma) { comma = false; }
+						else std::cout << ',';
+						std::cout << a;
+					}
+					std::cout << ')';
+				}
+				std::string val = j.second.value.value_or(std::string(""));
+				std::cout << '=' << val << std::endl;
 			}
 		}
 		return 0;

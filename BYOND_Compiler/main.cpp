@@ -10,5 +10,7 @@
 
 int main(int argc, char** argv)
 {
+	
+
 	return byond_compiler::test_it(argc, argv);
 }
