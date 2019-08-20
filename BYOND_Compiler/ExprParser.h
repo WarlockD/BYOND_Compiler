@@ -4,11 +4,48 @@
 #include <unordered_map>
 #include <optional>
 #include <memory>
+#include <string_view>
 #include <tao/pegtl.hpp>
 #include <tao/pegtl/analyze.hpp>
 #include <tao/pegtl/contrib/unescape.hpp>
 #include <tao/pegtl/contrib/raw_string.hpp>
 
+class string_t : public std::string_view {
+	static inline std::string_view _lookup(const std::string_view& sv) {
+		static std::unordered_map<std::string_view, std::pair<std::unique_ptr<char>, size_t>> string_table;
+		auto it = string_table.find(sv);
+		if (it != string_table.end())
+			return it->first;
+		std::unique_ptr<char> str(new char[sv.size() + 1]);
+		sv.copy(str.get(), sv.size());
+		std::string_view key(str.get(), sv.size());
+		return string_table.emplace(
+			key, std::make_pair(std::move(str), sv.size())).first->first;
+	}
+
+public:
+	string_t() : std::string_view() {}
+	string_t(const  string_t& s) : std::string_view(s.data(), s.size()) {}
+	string_t(const std::string_view& sv) : std::string_view(_lookup(sv)) {}
+	string_t(const char* str, size_t s) : string_t(std::string_view(str, s)) {}
+	string_t(const std::string& str) : string_t(std::string_view(str.c_str(), str.size())) {}
+};
+
+static inline bool operator==(const string_t& l, const string_t& r) {
+	return l.data() == r.data();
+}
+static inline std::ostream& operator<<(std::ostream& os, const string_t& s) {
+	os << static_cast<const std::string_view>(s);
+	return os;
+}
+
+namespace std {
+	template<>
+	struct hash<string_t> {
+		std::hash<std::string_view> _hash;
+		size_t operator()(const string_t& s) const { return _hash(static_cast<const std::string_view>(s)); }
+	};
+};
 
 namespace byond_compiler {
 	// copyed from the lua53 example parser
@@ -61,7 +98,7 @@ namespace byond_compiler {
 	struct numeral : sor< hexadecimal, decimal > {};
 
 	namespace preprocessor {
-		
+
 
 		// Since the the byond has NO ENUMS  OR ANYTHING A PROPER LANGUAGE SHOULD HAVE FOR ITS CONSTANTS ahem
 		// (rant over)
@@ -93,21 +130,21 @@ namespace byond_compiler {
 		struct name : seq< not_at< key_keyword >, identifier > {};
 		struct name_list : list< name, one< ',' >, blank > {};
 		struct name_list_must : list_must< name, one< ',' >, blank > {};
-		
-		 
+
+
 #if 0
-		struct parameter_list_one : seq< name_list, opt_must< pad< one< ',' > , ellipsis > > {};
+		struct parameter_list_one : seq < name_list, opt_must< pad< one< ',' >, ellipsis > > {};
 		struct parameter_list : sor< ellipsis, parameter_list_one > {};
 #endif
 
 		struct hash : one<'#'> {}; // We are in the start of a preprocessor statment
-		struct double_hash : two<'##'> {};
+		struct double_hash : two<'#'> {};
 		struct macro_tokens : sor<literal_string, name, hash, double_hash, not_one<'\\'>, seps> {};
 		struct macro_line : until<eol, macro_tokens> {};
 
-		struct macro_lines	: if_must< seq<one< '\\' >,eol>, seq<one< '\\' >, eol>, macro_line > {};
+		struct macro_lines : if_must< seq<one< '\\' >, eol>, seq<one< '\\' >, eol>, macro_line > {};
 
-			//until<sor<disable<string<'/','/'>>,eolf>> {}; //  until < star<sor<line_comment, eolf> >>{};
+		//until<sor<disable<string<'/','/'>>,eolf>> {}; //  until < star<sor<line_comment, eolf> >>{};
 		struct define_assignment : seq<must_blank, name, must_blank, macro_lines> {};
 
 		struct macro_arg : name {};
@@ -115,7 +152,7 @@ namespace byond_compiler {
 		struct macro_arguments : if_must< macro_list, one<')'>> {};
 		struct define_macro_arguments : if_must<one<'('>, macro_arguments> {};
 		struct define_name : name {};
-		struct define_statment : seq<hash, key_define, plus<blank>, define_name,sor<define_macro_arguments,star<blank>>,  macro_line> {};
+		struct define_statment : seq<hash, key_define, plus<blank>, define_name, sor<define_macro_arguments, star<blank>>, macro_line> {};
 
 		struct normal_line : seq< bol, until<eolf> > {};
 		struct something : seq<bol, sor<  define_statment, normal_line >> {};
@@ -123,30 +160,23 @@ namespace byond_compiler {
 
 		// symbol table for the preprocessor
 		using opt_string = std::optional<std::string>;
-		using symbol_t =  std::shared_ptr<const std::string>;
-		static inline bool operator==(const symbol_t& l, const symbol_t& r) {
-			return static_cast<const void*>(l->c_str()) == static_cast<const void*>(r->c_str());
-		}
+
+	
 		struct macro_t {
-			symbol_t name;
+			string_t name;
 			opt_string value;
-			std::vector<symbol_t> args;
+			std::vector<string_t> args;
 			macro_t() : name(), value(std::nullopt), args() {}
-			macro_t(symbol_t name, opt_string value) : name(name), value(value) {}
-			macro_t(symbol_t name) : name(name), value(std::nullopt) {}
+			macro_t(string_t name, opt_string value) : name(name), value(value) {}
+			macro_t(string_t name) : name(name), value(std::nullopt) {}
+		};
+		struct symbol_table_t {
+
 		};
 		struct state
 		{
-			std::unordered_map<std::string_view, symbol_t> string_table;
-			symbol_t lookup(std::string_view sv) {
-				auto it = string_table.find(sv);
-				if (it != string_table.end())
-					return it->second;
-				auto ret = std::make_shared<const std::string>(sv);
-				return string_table.emplace(*ret, ret).first->second;
-			}
 			macro_t temp_macro;
-			std::unordered_map< std::string, macro_t> symbol_table;
+			std::unordered_map< string_t, macro_t> symbol_table;
 		};
 
 		template< typename Rule > struct action {};
@@ -155,8 +185,8 @@ namespace byond_compiler {
 			template< typename Input >
 			static void apply(const Input& in, state& st)
 			{
-				st.temp_macro = macro_t(st.lookup(in.string()));
-				std::cout << '(' << *st.temp_macro.name << ' ';
+				st.temp_macro = macro_t(string_t(in.string()));
+				std::cout << '(' << st.temp_macro.name << ' ';
 			}
 		};
 		template<>
@@ -164,7 +194,7 @@ namespace byond_compiler {
 			template< typename Input >
 			static void apply(const Input& in, state& st)
 			{
-				st.temp_macro.args.push_back(st.lookup(in.string()));
+				st.temp_macro.args.push_back(in.string());
 				//std::cout << '(' << st.temp_name << ' ';
 			}
 		};
@@ -178,17 +208,15 @@ namespace byond_compiler {
 				size_t endpos = in.string().find_last_not_of(" \t\f\n\r");
 				if (startpos == std::string::npos) {
 					st.temp_macro.value = std::nullopt;
-					std::cout << '(' << st.temp_macro.name << ' ';
-					std::cout << " DEFINED  )";
 				} 
 				else {
 					std::string str = in.string();
 					str = str.substr(0, endpos + 1);
 					str = str.substr(startpos);
 					st.temp_macro.value = str;
-					std::cout << " = " << str << ')';
 				}
-				std::cout << " In table" << std::endl;
+				st.symbol_table.emplace(st.temp_macro.name, st.temp_macro);
+			//	std::cout << " In table" << std::endl;
 			}
 		};
 		template<>
@@ -234,7 +262,6 @@ namespace byond_compiler {
 		return 0;
 	}
 };
-
 
 
 
