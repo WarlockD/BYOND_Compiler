@@ -1,0 +1,572 @@
+
+state 0
+	$accept : _acc $end 
+	defns : _    (8)
+
+	error  shift 4
+	STR  reduce 8
+	DELIM  reduce 8
+	.  error
+
+	acc  goto 1
+	lexinput  goto 2
+	defns  goto 3
+
+state 1
+	$accept :  acc_$end 
+
+	$end  accept
+	.  error
+
+
+state 2
+	acc :  lexinput_    (1)
+
+	.  reduce 1
+
+
+state 3
+	lexinput :  defns_delim prods end 
+	lexinput :  defns_delim end 
+	defns :  defns_STR STR 
+
+	STR  shift 6
+	DELIM  shift 7
+	.  error
+
+	delim  goto 5
+
+state 4
+	lexinput :  error_    (4)
+
+	.  reduce 4
+
+
+state 5
+	lexinput :  defns delim_prods end 
+	lexinput :  defns delim_end 
+	end : _    (6)
+
+	$end  reduce 6
+	error  shift 13
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	DELIM  shift 7
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	delim  goto 11
+	prods  goto 8
+	end  goto 9
+	pr  goto 10
+	r  goto 12
+
+state 6
+	defns :  defns STR_STR 
+
+	STR  shift 23
+	.  error
+
+
+state 7
+	delim :  DELIM_    (9)
+
+	.  reduce 9
+
+
+state 8
+	lexinput :  defns delim prods_end 
+	prods :  prods_pr 
+	end : _    (6)
+
+	$end  reduce 6
+	error  shift 13
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	DELIM  shift 7
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	delim  goto 11
+	end  goto 24
+	pr  goto 25
+	r  goto 12
+
+state 9
+	lexinput :  defns delim end_    (3)
+
+	.  reduce 3
+
+
+state 10
+	prods :  pr_    (11)
+
+	.  reduce 11
+
+
+state 11
+	end :  delim_    (5)
+
+	.  reduce 5
+
+
+state 12
+	pr :  r_NEWE 
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  r_$ 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	ITER  shift 33
+	NEWE  shift 26
+	NULLS  shift 22
+	/  shift 32
+	|  shift 30
+	$  shift 34
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  error
+
+	r  goto 31
+
+state 13
+	pr :  error_NEWE 
+
+	NEWE  shift 35
+	.  error
+
+
+state 14
+	r :  CHAR_    (14)
+
+	.  reduce 14
+
+
+state 15
+	r :  STR_    (15)
+
+	.  reduce 15
+
+
+state 16
+	r :  ._    (16)
+
+	.  reduce 16
+
+
+state 17
+	r :  CCL_    (17)
+
+	.  reduce 17
+
+
+state 18
+	r :  NCCL_    (18)
+
+	.  reduce 18
+
+
+state 19
+	r :  SCON_r 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	r  goto 36
+
+state 20
+	r :  ^_r 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	r  goto 37
+
+state 21
+	r :  (_r ) 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	r  goto 38
+
+state 22
+	r :  NULLS_    (32)
+
+	.  reduce 32
+
+
+state 23
+	defns :  defns STR STR_    (7)
+
+	.  reduce 7
+
+
+state 24
+	lexinput :  defns delim prods end_    (2)
+
+	.  reduce 2
+
+
+state 25
+	prods :  prods pr_    (10)
+
+	.  reduce 10
+
+
+state 26
+	pr :  r NEWE_    (12)
+
+	.  reduce 12
+
+
+state 27
+	r :  r *_    (19)
+
+	.  reduce 19
+
+
+state 28
+	r :  r +_    (20)
+
+	.  reduce 20
+
+
+state 29
+	r :  r ?_    (21)
+
+	.  reduce 21
+
+
+state 30
+	r :  r |_r 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	r  goto 39
+
+state 31
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r r_    (23)
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  r_$ 
+
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  reduce 23
+
+	r  goto 31
+
+state 32
+	r :  r /_r 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	NULLS  shift 22
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	.  error
+
+	r  goto 40
+
+state 33
+	r :  r ITER_, ITER } 
+	r :  r ITER_} 
+	r :  r ITER_, } 
+
+	,  shift 41
+	}  shift 42
+	.  error
+
+
+state 34
+	r :  r $_    (30)
+
+	.  reduce 30
+
+
+state 35
+	pr :  error NEWE_    (13)
+
+	.  reduce 13
+
+
+state 36
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  SCON r_    (28)
+	r :  r_$ 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	ITER  shift 33
+	NULLS  shift 22
+	|  shift 30
+	$  shift 34
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  reduce 28
+
+	r  goto 31
+
+state 37
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  ^ r_    (29)
+	r :  r_$ 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	ITER  shift 33
+	NULLS  shift 22
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  reduce 29
+
+	r  goto 31
+
+state 38
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  r_$ 
+	r :  ( r_) 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	SCON  shift 19
+	ITER  shift 33
+	NULLS  shift 22
+	/  shift 32
+	|  shift 30
+	$  shift 34
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	)  shift 43
+	.  error
+
+	r  goto 31
+
+state 39
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r | r_    (22)
+	r :  r_r 
+	r :  r_/ r 
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  r_$ 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	ITER  shift 33
+	NULLS  shift 22
+	$  shift 34
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  reduce 22
+
+	r  goto 31
+
+state 40
+	r :  r_* 
+	r :  r_+ 
+	r :  r_? 
+	r :  r_| r 
+	r :  r_r 
+	r :  r_/ r 
+	r :  r / r_    (24)
+	r :  r_ITER , ITER } 
+	r :  r_ITER } 
+	r :  r_ITER , } 
+	r :  r_$ 
+
+	CHAR  shift 14
+	CCL  shift 17
+	NCCL  shift 18
+	STR  shift 15
+	ITER  shift 33
+	NULLS  shift 22
+	|  shift 30
+	$  shift 34
+	^  shift 20
+	(  shift 21
+	.  shift 16
+	*  shift 27
+	+  shift 28
+	?  shift 29
+	.  reduce 24
+
+	r  goto 31
+
+state 41
+	r :  r ITER ,_ITER } 
+	r :  r ITER ,_} 
+
+	ITER  shift 44
+	}  shift 45
+	.  error
+
+
+state 42
+	r :  r ITER }_    (26)
+
+	.  reduce 26
+
+
+state 43
+	r :  ( r )_    (31)
+
+	.  reduce 31
+
+
+state 44
+	r :  r ITER , ITER_} 
+
+	}  shift 46
+	.  error
+
+
+state 45
+	r :  r ITER , }_    (27)
+
+	.  reduce 27
+
+
+state 46
+	r :  r ITER , ITER }_    (25)
+
+	.  reduce 25
+
+
+24/127 terminals, 8/300 nonterminals
+33/600 grammar rules, 47/750 states
+0 shift/reduce, 0 reduce/reduce conflicts reported
+30/350 working sets used
+memory: states,etc. 394/12000, parser 18/12000
+12/600 distinct lookahead sets
+16 extra closures
+166 shift entries, 5 exceptions
+18 goto entries
+7 entries saved by goto default
+Optimizer space used: input 362/12000, output 291/12000
+291 table entries, 168 zero
+maximum spread: 265, maximum offset: 264

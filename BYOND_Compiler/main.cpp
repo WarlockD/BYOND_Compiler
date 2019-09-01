@@ -1,14 +1,10 @@
-#include <iostream>
-#include <fstream>
-#include <filesystem>
-#include <type_traits>
-#include <stack>
-#include <filesystem>
+#include "error.hpp"
 
 #include "ExprParser.h"
+//#include "error.hpp"
 
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
-	return byond_compiler::test_it(argc, argv);
+	return byond_compiler::preprocessor::test_it(argc, argv);
 }

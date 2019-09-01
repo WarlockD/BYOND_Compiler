@@ -1,31 +1,25 @@
 #pragma once
-#include <string>
-#include <iostream>
-#include <unordered_map>
-#include <optional>
-#include <memory>
-#include <tao/pegtl.hpp>
-#include <tao/pegtl/analyze.hpp>
-#include <tao/pegtl/contrib/unescape.hpp>
-#include <tao/pegtl/contrib/raw_string.hpp>
+
+#include "util.hpp"
 
 
 namespace byond_compiler {
 	// copyed from the lua53 example parser
 	using namespace TAO_PEGTL_NAMESPACE;  // NOLINT
-			// clang-format off
-	struct _line_comment : seq< one< '/' >, until< eolf > > {};
-	struct _multiline_comment : seq< one< '*'>, until< string< '*', '/'> > > {};
 	struct blank : sor<one<' '>, one<'\t'>> {}; // pegtl space includes \n\r
-	struct opt_blank : star<blank> {}; // pegtl space includes \n\r
-	struct must_blank : plus<blank> {};
-	struct line_comment : disable< seq<star<blank> ,one< '/' >, _line_comment >> {};
-	struct multiline_comment : disable< one< '/' >, _multiline_comment > {};
+	struct star_blank : star<blank> {}; // pegtl space includes \n\r
+	struct plus_blank : plus<blank> {};
 
+			// clang-format off
+	struct _line_comment : seq< one< '/' >, not_at< eol > > {}; // We don't want to  consume the end of line, but pass it to the parser
+	struct _multiline_comment : seq< one< '*'>, until< string< '*', '/'> ,any > > {};
+	struct comment : seq<one< '/' >, sor< _line_comment, _multiline_comment > > {};
 
-	struct comment : disable< one< '/' >, sor< _line_comment, _multiline_comment > > {};
-	struct continue_line : seq< one<'\\'>, eolf> {};// not sure how we handle / for line cuts yet hopefuly this works in all cases?
-	struct sep : sor< ascii::space, comment, continue_line> {};
+	struct line_comment : seq< two< '/' >, not_at< eol > > {};
+	struct multiline_comment : seq< string<'/', '*'>, until< string< '*', '/'>, any > > {};
+
+	
+	struct sep : sor<star_blank,  comment > {};
 	struct seps : star< sep > {};
 	// All above covers any spaces and comments inbetween junk, it all gets cut out
 
@@ -43,7 +37,8 @@ namespace byond_compiler {
 
 	template< char Q >
 	struct short_string : if_must< one< Q >, until< one< Q >, character > > {};
-	struct literal_string : sor< short_string< '"' >, short_string< '\'' > > {};
+	struct literal_string : short_string< '"' > {};
+	struct literal_char : short_string< '\'' > {};
 
 	template< typename E >
 	struct exponent : opt_must< E, opt< one< '+', '-' > >, plus< digit > > {};
@@ -60,7 +55,7 @@ namespace byond_compiler {
 	struct numeral : sor< hexadecimal, decimal > {};
 
 	namespace preprocessor {
-		
+
 
 		// Since the the byond has NO ENUMS  OR ANYTHING A PROPER LANGUAGE SHOULD HAVE FOR ITS CONSTANTS ahem
 		// (rant over)
@@ -79,69 +74,70 @@ namespace byond_compiler {
 		template< typename Key >
 		struct key : seq< Key, not_at< identifier_other > > {};
 
-		struct key_define : key< str_define > {};
-		struct key_undef : key< str_undef > {};
-		struct key_ifdef : key< str_ifdef > {};
-		struct key_ifndef : key< str_ifndef > {};
-		struct key_if : key< str_if > {};
-		struct key_else : key< str_else > {};
-		struct key_endif : key< str_endif > {};
-		struct key_defined : key< str_defined > {};
-		struct key_keyword : key< str_keyword > {}; // all of them
+		struct DEFINE : key< str_define > {};
+		struct UNDEF : key< str_undef > {};
+		struct IFDEF : key< str_ifdef > {};
+		struct IFNDEF : key< str_ifndef > {};
+		struct IF : key< str_if > {};
+		struct ELSE : key< str_else > {};
+		struct ENDIF : key< str_endif > {};
+		struct DEFINED : key< str_defined > {};
+		struct KEYWORDS : key< str_keyword > {}; // all of them
 
-		struct name : seq< not_at< key_keyword >, identifier > {};
+		struct name : seq< not_at< KEYWORDS >, identifier > {};
 		struct name_list : list< name, one< ',' >, blank > {};
 		struct name_list_must : list_must< name, one< ',' >, blank > {};
-		
-		 
+
+
 #if 0
-		struct parameter_list_one : seq< name_list, opt_must< pad< one< ',' > , ellipsis > > {};
+		struct parameter_list_one : seq < name_list, opt_must< pad< one< ',' >, ellipsis > > {};
 		struct parameter_list : sor< ellipsis, parameter_list_one > {};
 #endif
+		template< typename R, typename P = blank >
+		struct pad_blank:  seq< R, star< P > >{};
+		struct begin_cpp : pad_blank<one<'#'>> {};
 
-		struct hash : seq<bol, one<'#'>> {}; // We are in the start of a preprocessor statment
-		struct macro_line : list<until<eol>, seq<one<'/'>, eol>> {};
-	
-			//until<sor<disable<string<'/','/'>>,eolf>> {}; //  until < star<sor<line_comment, eolf> >>{};
-		struct define_assignment : seq<must_blank, name, must_blank, macro_line> {};
+		struct hash : one<'#'> {}; // We are in the start of a preprocessor statment
+		struct double_hash : two<'#'> {};
+		struct macro_tokens : sor<literal_string, name, hash, double_hash, not_one<'\\'>, seps> {};
 
-		struct macro_arg : name {};
-		struct macro_list : list< macro_arg, one< ',' >, blank > {};
-		struct macro_arguments : if_must< macro_list, one<')'>> {};
-		struct define_macro_arguments : if_must<one<'('>, macro_arguments> {};
-		struct define_name : name {};
-		struct define_statment : seq<hash, key_define, plus<blank>, define_name,sor<define_macro_arguments,star<blank>>,  macro_line> {};
+
+		struct macro_line : list<not_at<eol>, seq<one<'\\'>, eol>> {};
+
 
 		struct normal_line : seq< bol, until<eolf> > {};
-		struct something : sor<  define_statment, normal_line > {};
+		struct define_arg_comma : pad_blank<one<','>> {};
+		struct define_list_end : pad_blank<one<')'>> {};
+		struct define_name : name {};
+		struct define_arg : name {};
+		struct define_list : seq <one<'('>, star_blank, opt < list_must<define_arg, define_arg_comma>> , define_list_end>{};
+
+		struct preprocessor_commands : seq<
+			define_name, sor<star_blank,define_list, macro_line >, // define preprocesso
+			until<eol>
+		> {};
+		//struct preprocessor_start : if_must<seq<hash, star<blank>>, preprocessor_commands> {};
+
+		struct something : seq<bol, sor<  if_must<begin_cpp, preprocessor_commands>, normal_line >> {};
 		struct grammar : until< eof, must< something > > {};
 
 		// symbol table for the preprocessor
 		using opt_string = std::optional<std::string>;
-		using symbol_t =  std::shared_ptr<const std::string>;
-		static inline bool operator==(const symbol_t& l, const symbol_t& r) {
-			return static_cast<const void*>(l->c_str()) == static_cast<const void*>(r->c_str());
-		}
+
+
 		struct macro_t {
-			symbol_t name;
+			string_t name;
 			opt_string value;
-			std::vector<symbol_t> args;
+			std::vector<string_t> args;
 			macro_t() : name(), value(std::nullopt), args() {}
-			macro_t(symbol_t name, opt_string value) : name(name), value(value) {}
-			macro_t(symbol_t name) : name(name), value(std::nullopt) {}
+			macro_t(string_t name, opt_string value) : name(name), value(value) {}
+			macro_t(string_t name) : name(name), value(std::nullopt) {}
 		};
+
 		struct state
 		{
-			std::unordered_map<std::string_view, symbol_t> string_table;
-			symbol_t lookup(std::string_view sv) {
-				auto it = string_table.find(sv);
-				if (it != string_table.end())
-					return it->second;
-				auto ret = std::make_shared<const std::string>(sv);
-				return string_table.emplace(*ret, ret).first->second;
-			}
 			macro_t temp_macro;
-			std::unordered_map< std::string, macro_t> symbol_table;
+			std::unordered_map< string_t, macro_t> symbol_table;
 		};
 
 		template< typename Rule > struct action {};
@@ -150,16 +146,16 @@ namespace byond_compiler {
 			template< typename Input >
 			static void apply(const Input& in, state& st)
 			{
-				st.temp_macro = macro_t(st.lookup(in.string()));
-				std::cout << '(' << *st.temp_macro.name << ' ';
+				st.temp_macro = macro_t(string_t(in.string()));				// macro starts here so lets clear the state here
 			}
 		};
+
 		template<>
-		struct action< macro_arg > {
+		struct action< define_arg > {
 			template< typename Input >
 			static void apply(const Input& in, state& st)
 			{
-				st.temp_macro.args.push_back(st.lookup(in.string()));
+				st.temp_macro.args.push_back(in.string());
 				//std::cout << '(' << st.temp_name << ' ';
 			}
 		};
@@ -173,50 +169,43 @@ namespace byond_compiler {
 				size_t endpos = in.string().find_last_not_of(" \t\f\n\r");
 				if (startpos == std::string::npos) {
 					st.temp_macro.value = std::nullopt;
-					std::cout << '(' << st.temp_macro.name << ' ';
-					std::cout << " DEFINED  )";
-				} 
+				}
 				else {
 					std::string str = in.string();
 					str = str.substr(0, endpos + 1);
 					str = str.substr(startpos);
 					st.temp_macro.value = str;
-					std::cout << " = " << str << ')';
 				}
-				std::cout << " In table" << std::endl;
+				st.symbol_table.emplace(st.temp_macro.name, st.temp_macro);
+				//	std::cout << " In table" << std::endl;
 			}
 		};
-		template<>
-		struct action< define_assignment  >
+
+		static inline int test_it(int argc, const char** argv)
 		{
-			template< typename Input >
-			static void apply(const Input& in, state& st)
-			{
-				//auto i = st.symbol_table.emplace(st.temp_name, st.temp_value);
-				//std::cout << " In table" << std::endl;
-#if 0
-				if (!st.symbol_table.end().second) {
-					throw parse_error("redefining symbol " + st.temp_name, in);  // NOLINT
+			const std::size_t issues_found = tao::pegtl::analyze<  preprocessor::grammar >();
+			for (int i = 1; i < argc; ++i) {
+				file_input in(argv[i]);
+				preprocessor::state st;
+				parse< preprocessor::grammar, preprocessor::action >(in, st);
+				for (const auto& j : st.symbol_table) {
+					std::cout << j.first;
+					if (j.second.args.size() > 0) {
+						std::cout << '(';
+						bool comma = true;
+						for (const auto& a : j.second.args) {
+							if (comma) { comma = false; }
+							else std::cout << ',';
+							std::cout << a;
+						}
+						std::cout << ')';
+					}
+					std::string val = j.second.value.value_or(std::string(""));
+					std::cout << '=' << val << std::endl;
 				}
-#endif
 			}
-		};
-
-	};
-	static inline int test_it(int argc, char** argv)
-	{
-		for (int i = 1; i < argc; ++i) {
-			file_input in(argv[i]);
-			preprocessor::state st;
-			parse< preprocessor::grammar, preprocessor::action >(in, st);
-			for (const auto& j : st.symbol_table) {
-				std::cout << j.first << " = "<< std::endl;
-			}
+			return 0;
 		}
-		return 0;
-	}
+	};
 };
-
-
-
 

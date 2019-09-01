@@ -20,6 +20,9 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ccp_processor.cpp" />
     <ClCompile Include="Lex.cpp" />
+    <ClCompile Include="util.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccp_processor.h">
@@ -29,6 +32,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Lex.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ast.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="error.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
