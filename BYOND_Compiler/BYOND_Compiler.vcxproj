@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -21,19 +21,49 @@
   <ItemGroup>
     <ClCompile Include="ccp_processor.cpp" />
     <ClCompile Include="Lex.cpp" />
+    <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ast.hpp" />
     <ClInclude Include="ccp_processor.h" />
+    <ClInclude Include="entt.hpp" />
     <ClInclude Include="error.hpp" />
     <ClInclude Include="ExprParser.h" />
     <ClInclude Include="Lex.hpp" />
+    <ClInclude Include="lodepng.h" />
+    <ClInclude Include="Object.h" />
+    <ClInclude Include="queue.h" />
     <ClInclude Include="util.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+    <CustomBuild Include="preprocessor.y">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">y.tab.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">y.tab.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">y.tab.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">y.tab.c</Outputs>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="E:\source\SFML-2.5.1\bin\src\SFML\Graphics\sfml-graphics.vcxproj">
+      <Project>{04015b69-83f1-3151-ab98-40f580dff082}</Project>
+    </ProjectReference>
+    <ProjectReference Include="E:\source\SFML-2.5.1\bin\src\SFML\Main\sfml-main.vcxproj">
+      <Project>{e00c736e-c209-348c-82ea-a212706e7244}</Project>
+    </ProjectReference>
+    <ProjectReference Include="E:\source\SFML-2.5.1\bin\src\SFML\System\sfml-system.vcxproj">
+      <Project>{aa630788-5ade-3ca7-a5d0-1b7a56051768}</Project>
+    </ProjectReference>
+    <ProjectReference Include="E:\source\SFML-2.5.1\bin\src\SFML\Window\sfml-window.vcxproj">
+      <Project>{b9e2c8e3-2090-36f7-a49d-d5dc75c2707c}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -89,13 +119,16 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\source\SFML-2.5.1\include;$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\source\SFML-2.5.1\bin\lib\Debug;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>E:\source\SFML-2.5.1\bin\lib\Debug;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\source\SFML-2.5.1\include;$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\source\SFML-2.5.1\bin\lib\Debug;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>E:\source\SFML-2.5.1\bin\lib\Debug;$(ExecutablePath)</ExecutablePath>
+    <OutDir>E:\source\SFML-2.5.1\bin\lib\Debug\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -127,7 +160,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -145,7 +178,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

@@ -1,77 +1,146 @@
-%option     outfile="lexer.cxx"
+// C/C++ tokenizer (plain, no Unicode)
 
+%top{
+#include "util.hpp"
+enum class Kind {E
+	
+	DEFINE
 
-%option c++
-%option 8bit warn nodefault
-%option noyywrap
-
-%{
-    #include <stdexcept>
-    #include <cstdlib>
-    #include "parser.hxx"
-    #include "scanner.hpp"
-
-    // utility macros to simplify the actions
-    #define YIELD_TOKEN(tok, val, type)                 \
-                    yylval->build<type>(val);           \
-                    return yy::parser::token::T_##tok;
-
-    #define YY_TXT                  std::string(yytext, yyleng)
-    #define YY_NUM                  std::atof(yytext)
-
-    #define INT_TOKEN(tok, val)     YIELD_TOKEN(tok, val, int)
-    #define NUM_TOKEN(tok)          YIELD_TOKEN(tok, YY_NUM, double)
-    #define STR_TOKEN(tok)          YIELD_TOKEN(tok, YY_TXT, std::string)
-    #define LITERAL                 return yytext[0];
-
-    // before executing an action, set the length of the location from
-    // the length of the matched pattern:
-    #define YY_USER_ACTION          yylloc->columns(yyleng);
+};
 %}
 
-%%
-%{
-    // before matching any pattern, update the the current location
-    yylloc->step();
+
+%class{
+	std::stack<string_t> _include_stack;
+	void include_file()
+  {
+    if (_include_stack.size() > 99)
+      exit(EXIT_FAILURE);           // max include depth exceeded
+	  std::string_view file(text());
+	  file.remove_prefix(file.find_first_of('"'));
+	  file.remove_suffix(file.size()-file.find_last_of('"'));// get filename    
+	  _include_stack.push(file);
+    FILE *fd = fopen(_include_stack.top().data(), "r");
+    if (!fd)
+      exit(EXIT_FAILURE);           // cannot open file
+    push_matcher(new_matcher(fd));  // push current matcher, use new matcher
+  }
+  
+  bool end_of_file()
+  {
+    if (depth == 0)
+      return true;                  // return true: no more input to read
+    fclose(in());                   // close current input in() (a FILE*)
+    pop_matcher();                  // delete current matcher, pop matcher
+	_include_stack.pop();
+    return false;                   // return false: continue reading
+  }
+
 %}
 
-I/\(                        LITERAL
-H/\(                        LITERAL
+%init{
 
-[[:alpha:]][[:alnum:]_]*    STR_TOKEN(NAME)
+%}
 
-[[:digit:]]+                NUM_TOKEN(NUM)
-[[:digit:]]*\.[[:digit:]]+  NUM_TOKEN(NUM)
 
-\+                          INT_TOKEN(SIGN, ast::SIGN_PLUS)
-\-                          INT_TOKEN(SIGN, ast::SIGN_MINUS)
+%option flex
+%option nodefault
+%option fast
+%option main
 
-==?                         INT_TOKEN(REL, ast::REL_EQ)
-\<=                         INT_TOKEN(REL, ast::REL_LE)
-\>=                         INT_TOKEN(REL, ast::REL_GE)
+/* may add %option unicode before the %include to match unicode identifiers */
 
-#.*                         {/* eat comments */}
-[ \t]                       {/* eat whitespace */}
+// %include "cdefs.l" // That is the definisions below
 
-\n                          yylloc->lines(1); LITERAL
+// Requires RE/flex matcher or a Perl/ECMA matcher that supports lazy quants
 
-                            /* forward everything else, even invalid
-                             * tokens - making use of bison's automatic
-                             * error messages */
-.                           LITERAL
+WHITESPACE	[[:space:]]+
+ILCOMMENT	"//"([^\n]|\\\n)*\n
+MLCOMMENT	"/*"(.|\n)*?"*/"
+
+NAME		[[:alpha:]_][[:alnum:]_]*
+	^\h*#\h*
+TILL_EOL	([^\n]|\\\r?\n)+
+UFLT		\d*(\d|\.\d|\d\.)\d*([Ee][-+]?\d+)?[FfLl]?
+UOCT		0[0-7]+
+UHEX		0[Xx][[:xdigit:]]+
+UDEC		0|[1-9]\d*
+UINT		({UOCT}|{UHEX}|{UDEC})([Ll]{0,2}[Uu]?|[Uu][Ll]{0,2})
+CHAR		L?'(\\.|[^\\\n'])*'
+STRING		L?\"(\\.|\\\r?\n|[^\\\n"])*\"
+
+
+
 
 %%
 
-yy::scanner::scanner(std::istream* in, std::ostream* out)
-    : yyFlexLexer(in, out)
-{
-}
+{WHITESPACE}
+{ILCOMMENT}
+{MLCOMMENT}
+// handles include
+{DIRECTIVE}include\h*\".*?\"    include_file();
+<<EOF>>                   if (end_of_file()) return 0;
 
-// Flex generates the code for `yy::scanner::lex` (see YY_DECL).
+{DIRECTIVE}define{WHITESPACE}  start(DIRECTIVE_DEFINE);
+<DIRECTIVE_DEFINE> NAME			
 
-// This must be defined manually to prevent linker errors:
-int yyFlexLexer::yylex()
-{
-    throw std::logic_error(
-        "The yylex() exists for technical reasons and must not be used.");
-}
+
+printf("DIRECTIVE %s\n", yytext);
+{NAME}		printf("NAME      %s\n", yytext);
+{UFLT}		printf("FLOAT     %s\n", yytext);
+{UINT}		printf("INT       %s\n", yytext);
+{CHAR}		printf("CHAR      %s\n", yytext);
+{STRING}	printf("STRING    %s\n", yytext);
+"{"|"<%"	|
+"}"|"%>"	|
+"["|"<:"	|
+"]"|":>"	|
+"("		|
+")"		|
+"+="		|
+"++"		|
+"+"		|
+"-="		|
+"--"		|
+"->*"		|
+"->"		|
+"-"		|
+"=="		|
+"="		|
+"<="		|
+"<<="		|
+"<<"		|
+"<"		|
+">="		|
+">>="		|
+">>"		|
+">"		|
+"!="		|
+"!"		|
+","		|
+";"		|
+"..."		|
+".*"		|
+"."		|
+"^="		|
+"^"		|
+"~"		|
+"*="		|
+"*"		|
+"/="		|
+"/"		|
+"%="		|
+"%"		|
+"&="		|
+"&&"		|
+"&"		|
+"|="		|
+"||"		|
+"|"		|
+"::"		|
+":"		|
+"?"		printf("PUNCT     %s\n", yytext);
+.		printf("*** ERROR '%s' at line %d\n", yytext, yylineno);
+
+%%
+

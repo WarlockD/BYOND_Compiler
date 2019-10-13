@@ -19,11 +19,12 @@ int ntags, tagmax, havetags=0;
 char **tag_table;
 
 char saw_eof, unionized;
-char *cptr, *line;
-int linesize;
+std::string::const_iterator cptr;
+std::string line;
 
-FILE *inc_file = NULL;
-char  inc_file_name[LINESIZE];
+
+std::fstream inc_file;
+std::filesystem::path inc_file_name;
 int   inc_save_lineno;
 
 int in_ifdef = 0;
@@ -193,7 +194,7 @@ char *get_line() {
 
 char *dup_line()
 {
-    register char *p, *s, *t;
+    char *p, *s, *t;
 
     if (line == 0) return (0);
     s = line;
@@ -207,7 +208,7 @@ char *dup_line()
 
 char *skip_comment()
 {
-    register char *s;
+    char *s;
 
     int st_lineno = lineno;
     char *st_line = dup_line();
@@ -226,7 +227,7 @@ char *skip_comment()
 
 int nextc()
 {
-    register char *s;
+    char *s;
 
     if (line == 0 && get_line() == 0)
 	return (EOF);
@@ -277,7 +278,7 @@ static struct keyword { char name[12]; int token; } keywords[] = {
 
 int keyword()
 {
-  register int	c;
+  int	c;
   char		*t_cptr = cptr;
   struct keyword	*key;
   
@@ -309,8 +310,8 @@ int keyword()
 
 void copy_ident()
 {
-    register int c;
-    register FILE *f = output_file;
+    int c;
+    FILE *f = output_file;
 
     if ((c = nextc()) == EOF) unexpected_EOF();
     if (c != '"') syntax_error(lineno, line, cptr);
@@ -336,7 +337,7 @@ void copy_ident()
 
 void copy_string(int quote, FILE *f1, FILE *f2)
 {
-register int	c;
+int	c;
 int		s_lineno = lineno;
 char		*s_line = dup_line();
 char		*s_cptr = s_line + (cptr - line - 1);
@@ -357,7 +358,7 @@ char		*s_cptr = s_line + (cptr - line - 1);
 
 void copy_comment(FILE *f1, FILE *f2)
 {
-register int	c;
+int	c;
 
     if ((c = *cptr) == '/') {
 	OUTC('*');
@@ -386,8 +387,8 @@ register int	c;
 
 void copy_text()
 {
-    register int c;
-    register FILE *f = text_file;
+    int c;
+    FILE *f = text_file;
     int need_newline = 0;
     int t_lineno = lineno;
     char *t_line = dup_line();
@@ -432,7 +433,7 @@ loop:
 void copy_union()
 {
     FILE *dc_file;
-    register int c;
+    int c;
     int depth;
     int u_lineno = lineno;
     char *u_line = dup_line();
@@ -492,11 +493,11 @@ int hexval(int c)
 
 bucket *get_literal()
 {
-    register int c, quote;
-    register int i;
-    register int n;
-    register char *s;
-    register bucket *bp;
+    int c, quote;
+    int i;
+    int n;
+    char *s;
+    bucket *bp;
     int s_lineno = lineno;
     char *s_line = dup_line();
     char *s_cptr = s_line + (cptr - line);
@@ -621,7 +622,7 @@ int is_reserved(char *name)
 
 bucket *get_name()
 {
-    register int c;
+    int c;
 
     cinc = 0;
     for (c = *cptr; IS_IDENT(c); c = *++cptr)
@@ -633,8 +634,8 @@ bucket *get_name()
 
 int get_number()
 {
-    register int c;
-    register int n;
+    int c;
+    int n;
 
     n = 0;
     for (c = *cptr; isdigit(c); c = *++cptr)
@@ -707,7 +708,7 @@ char	*s;
 
 char *get_tag()
 {
-    register int c;
+    int c;
     int t_lineno = lineno;
     char *t_line = dup_line();
     char *t_cptr = t_line + (cptr - line);
@@ -742,8 +743,8 @@ char	*b = cptr;
 
 void declare_tokens(int assoc)
 {
-    register int c;
-    register bucket *bp;
+    int c;
+    bucket *bp;
     int value;
     char *tag = 0;
 
@@ -816,8 +817,8 @@ int	args = 0, c;
 
 void declare_types()
 {
-    register int c;
-    register bucket *bp=0;
+    int c;
+    bucket *bp=0;
     char *tag=0;
 
     c = nextc();
@@ -848,8 +849,8 @@ void declare_types()
 
 void declare_start()
 {
-    register int c;
-    register bucket *bp;
+    int c;
+    bucket *bp;
 
     c = nextc();
     if (c == EOF) unexpected_EOF();
@@ -865,7 +866,7 @@ void declare_start()
 
 void read_declarations()
 {
-    register int c, k;
+    int c, k;
 
     cache_size = 256;
     cache = MALLOC(cache_size);
@@ -1046,8 +1047,7 @@ int	i, redec=0;
 	    if (redec) {
 		if (a->argtags[i] != tmp)
 		    error(rescan_lineno, 0, 0, "type of argument %d to %s "
-			  "doesn't agree with previous declaration", i+1,
-			  a->name); }
+			  "doesn't agree with previous declaration", i+1); }
 	    else
 		a->argtags[i] = tmp; }
 	else if (!redec)
@@ -1176,8 +1176,8 @@ int			i;
 
 void advance_to_start()
 {
-    register int c;
-    register bucket *bp;
+    int c;
+    bucket *bp;
     char *s_cptr;
     int s_lineno;
     char	*args = 0;
@@ -1237,7 +1237,7 @@ void start_rule(bucket *bp, int s_lineno)
 
 void end_rule()
 {
-    register int i;
+    int i;
 
     if (!last_was_action && plhs[nrules]->tag) {
 	for (i = nitems - 1; pitem[i]; --i) continue;
@@ -1253,7 +1253,7 @@ void end_rule()
 
 void insert_empty_rule()
 {
-    register bucket *bp, **bpp;
+    bucket *bp, **bpp;
 
     assert(cache);
     sprintf(cache, "$$%d", ++gensym);
@@ -1308,8 +1308,8 @@ FILE	*f = action_file;
 
 void add_symbol()
 {
-    register int c;
-    register bucket *bp;
+    int c;
+    bucket *bp;
     int s_lineno = lineno;
     char *args = 0;
     int argslen = 0;
@@ -1347,7 +1347,7 @@ void add_symbol()
 	for (i=bp->args-1; i>=0; i--)
 	    if (plhs[nrules]->argtags[i] != bp->argtags[i])
 		error(lineno, line, cptr, "Wrong type for default argument "
-		      "%d to %s", i+1, bp->name); }
+		      "%d to %s", i+1); }
     else if (bp->args != argslen)
 	error(lineno, line, cptr, "wrong number of arguments for %s",
 				  bp->name);
@@ -1365,13 +1365,13 @@ void add_symbol()
 
 void copy_action()
 {
-    register int c;
-    register int i, j, n;
+    int c;
+    int i, j, n;
     int depth;
     int trialaction = 0;
     int haveyyval = 0;
     char *tag;
-    register FILE *f = action_file;
+    FILE *f = action_file;
     int a_lineno = lineno;
     char *a_line = dup_line();
     char *a_cptr = a_line + (cptr - line);
@@ -1583,8 +1583,8 @@ loop:
 
 int mark_symbol()
 {
-    register int c;
-    register bucket *bp;
+    int c;
+    bucket *bp;
 
     c = cptr[1];
     if (c == '%' || c == '\\') {
@@ -1622,7 +1622,7 @@ int mark_symbol()
 
 void read_grammar()
 {
-    register int c;
+    int c;
 
     initialize_grammar();
     advance_to_start();
@@ -1650,7 +1650,7 @@ void read_grammar()
 
 void free_tags()
 {
-    register int i;
+    int i;
 
     if (tag_table == 0) return;
 
@@ -1662,8 +1662,8 @@ void free_tags()
 
 void pack_names()
 {
-    register bucket *bp;
-    register char *p, *s, *t;
+    bucket *bp;
+    char *p, *s, *t;
 
     name_pool_size = 13;  /* 13 == sizeof("$end") + sizeof("$accept") */
     for (bp = first_symbol; bp; bp = bp->next)
@@ -1684,7 +1684,7 @@ void pack_names()
 
 void check_symbols()
 {
-    register bucket *bp;
+    bucket *bp;
 
     if (goal->class == UNKNOWN)
 	undefined_goal(goal->name);
@@ -1697,9 +1697,9 @@ void check_symbols()
 
 void pack_symbols()
 {
-    register bucket *bp;
-    register bucket **v;
-    register int i, j, k, n;
+    bucket *bp;
+    bucket **v;
+    int i, j, k, n;
 
     nsyms = 2;
     ntokens = 1;
@@ -1792,7 +1792,7 @@ void pack_symbols()
 
 void pack_grammar()
 {
-    register int i, j;
+    int i, j;
     int assoc, prec;
 
     ritem = NEW2(nitems, Yshort);
@@ -1852,9 +1852,9 @@ void pack_grammar()
 
 void print_grammar()
 {
-    register int i, j, k;
+    int i, j, k;
     int spacing = 0;
-    register FILE *f = verbose_file;
+    FILE *f = verbose_file;
 
     if (!vflag) return;
 

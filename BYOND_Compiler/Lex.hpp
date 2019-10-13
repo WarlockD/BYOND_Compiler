@@ -1,5 +1,7 @@
 #pragma once
 #include "util.hpp"
+#include <tuple>
+#include <variant>
 
 
 
@@ -22,14 +24,131 @@ public:
 	bool operator==(const FilePosition& r) const { return _filename == r._filename && _line == r._line && _pos == r._pos; }
 	friend class Lexer;
 };
- enum class Interp { None, Begin, Part, End };
- using ident_t = std::pair<string_t, bool>;
- using stringlit_t = std::pair<string_t, Interp>;
 
 
+class Lexer {
 
 
+	enum class Tok {
+		Null, // empty
+		Tab,
+		Newline,
+		Space,
+		Not,
+		NotEq,
+		DoubleQuote,
+		Hash,
+		TokenPaste,
+		Mod,
+		ModAssign,
+		BitAnd,
+		And,
+		BitAndAssign,
+		SingleQuote,
+		LParen,
+		RParen,
+		Mul,
+		Pow,
+		MulAssign,
+		Add,
+		PlusPlus,
+		AddAssign,
+		Comma,
+		Sub,
+		MinusMinus,
+		SubAssign,
+		Dot,
+		Super,
+		Ellipsis,
+		Slash,
+		BlockComment,
+		LineComment,
+		DivAssign,
+		Colon,
 
+		Semicolon,
+		Less,
+		LShift,
+		LShiftAssign,
+		LessEq,
+		LessGreater,
+		Assign,
+		Eq,
+		Greater,
+		GreaterEq,
+		RShift,
+		RShiftAssign,
+		QuestionMark,
+		SafeDot,
+		SafeColon,
+		LBracket,
+		RBracket,
+		BitXor,
+		BitXorAssign,
+		LBrace,
+		BlockString,
+		BitOr,
+		BitOrAssign,
+		Or,
+		RBrace,
+		BitNot,
+		NotEquiv,
+		Equiv,
+		// Keywords - not checked by read_punct
+		In,
+	};
+
+	enum  kwtype {
+		KIF, KIFDEF, KIFNDEF, KELIF, KELSE, KENDIF, KINCLUDE, KDEFINE,
+		KUNDEF, KLINE, KERROR, KPRAGMA, KDEFINED,
+		KLINENO, KFILE, KDATE, KTIME, KSTDC, KEVAL
+	};
+
+	/* character classes */
+	struct C_WS {		constexpr bool operator()(int ch) const { return ch == ' ' || ch == '\t' || ch == '\n'; } };	//1
+	struct C_ALPH {		constexpr bool operator()(int ch) const { return isalpha(ch); } };	//1
+	struct C_NUM {		constexpr bool operator()(int ch) const { return isdigit(ch); } };	//1
+	struct C_EOF { constexpr bool operator()(int ch) const { return ch == EOF; }; };	//1
+	struct C_XX { constexpr bool operator()(int ch) const { return true; } };// any
+	struct C_CHAR { const int _ch = 0;	constexpr bool operator()(int ch) const { return _ch == ch; } };// any
+
+	int	tottok;
+	int	tokkind[256];
+	static constexpr size_t MAXSTATE = 32;
+	enum class STATE {
+		START = 0, NUM1, NUM2, NUM3, ID1, ST1, ST2, ST3, COM1, COM2, COM3, COM4,
+		CC1, CC2, WS1, PLUS1, MINUS1, STAR1, SLASH1, PCT1, SHARP1,
+		CIRC1, GT1, GT2, LT1, LT2, OR1, AND1, ASG1, NOT1, DOTS1,
+		S_SELF = MAXSTATE, S_SELFB, S_EOF, S_NL, S_EOFSTR,
+		S_STNL, S_COMNL, S_EOFCOM, S_COMMENT, S_EOB, S_WS, S_NAME
+	};
+
+	
+	static constexpr size_t	QBSBIT = 0100;
+
+	using cclass = std::variant<std::nullptr_t, C_WS, C_ALPH, C_NUM, C_EOF, C_XX, C_CHAR>;
+	struct action_t {
+		const Tok token; const STATE state;
+	};
+	static constexpr action_t ACT(Tok tok, STATE act) { return action_t{ tok, act }; }
+	static constexpr STATE	GETACT(action_t st) { return st.state; }
+
+	using nstate_t = std::variant<STATE, action_t>;
+
+	struct	fsm_t {
+		const STATE	state;		/* if in this state */
+		const cclass ch[4];		/* and see one of these characters */
+		const STATE	nextstate;	/* enter this state if +ve */
+	};
+
+	static constexpr  fsm_t fsm[] {
+		/* start state */
+		{ STATE::START,	{ C_XX{} },	STATE::S_SELF },
+
+	};
+
+};
+#if 0
  class Punc {
 	 // from spacemanDMM
 	 /// This lookup table is used to keep `read_punct`, called for essentially each
@@ -55,6 +174,7 @@ public:
 	 };
  public:
 	 enum _PEnum {
+		 Null, // empty
 		 Tab,
 		 Newline,
 		 Space,
@@ -124,6 +244,7 @@ public:
 	 static constexpr auto  CloseColon = Colon;
 	 inline operator _PEnum() const { return _value; }
 	 static constexpr const char* _toString[] = {
+		 "\0",
 	 "\t",
 	 "\n",
 	 " ",
@@ -189,46 +310,42 @@ public:
 	 // Keywords - not checked by read_punct
 	 "in",
 	 };
-
-	 Punc(_PEnum v) : _value(v) {}
-	 bool is_whitespace() const { return _value == Tab || _value == Newline || _value == Space; }
-
+	 constexpr Punc() : _value(Null) {}
+	 constexpr Punc(_PEnum v) : _value(v) {}
+	 constexpr bool is_whitespace() const { return _value == Tab || _value == Newline || _value == Space; }
+	 constexpr bool operator==(const _PEnum& v) const { return _value == v; }
+	 constexpr bool operator!=(const _PEnum& v) const { return _value != v; }
  private:
-	 static constexpr inline bool seperate_from(_PEnum p) {
-		 return  p == In ||
-			 p == Eq ||
-			 p == NotEq ||
-			 p == Mod ||
-			 p == And ||
-			 p == BitAndAssign ||
-			 p == Mul ||
-			 p == Pow ||
-			 p == MulAssign ||
-			 p == Add ||
-			 p == AddAssign ||
-			 p == Sub ||
-			 p == SubAssign ||
-			 p == DivAssign ||
-			 p == Colon ||
-			 p == Less ||
-			 p == LShift ||
-			 p == LShiftAssign ||
-			 p == LessEq ||
-			 p == LessGreater ||
-			 p == Assign ||
-			 p == Greater ||
-			 p == GreaterEq ||
-			 p == RShift ||
-			 p == RShiftAssign ||
-			 p == QuestionMark ||
-			 p == BitXorAssign ||
-			 p == BitOrAssign ||
-			 p == Or;
-	 }
 	 _PEnum _value;
  };
+ // enum class Interp { None, Begin, Part, End };
 
- using token_t = std::variant<std::nullptr_t, Punc, ident_t, stringlit_t, std::filesystem::path,int, float>;
+ struct Symbol { string_t value; };
+ struct IdentSymbol : public Symbol {  }; // true
+ struct String { string_t value; };
+ struct InterpStringBegin { string_t value; };
+ struct InterpStringPart { string_t value; };
+ struct InterpStringEnd { string_t value; };
+ struct DocComment { string_t comment; };
+ static bool operator==(const Symbol& l, const string_t& r) { return l.value == r; }
+ static bool operator!=(const Symbol& l, const string_t& r) { return l.value != r; }
+ static bool operator==(const IdentSymbol& l, const string_t& r) { return l.value == r; }
+ static bool operator!=(const IdentSymbol& l, const string_t& r) { return l.value != r; }
+
+ static bool operator==(const InterpStringBegin& l, const string_t& r) { return l.value == r; }
+ static bool operator!=(const InterpStringBegin& l, const string_t& r) { return l.value != r; }
+
+ static bool operator==(const InterpStringPart& l, const string_t& r) { return l.value == r; }
+ static bool operator!=(const InterpStringPart& l, const string_t& r) { return l.value != r; }
+
+ static bool operator==(const InterpStringEnd& l, const string_t& r) { return l.value == r; }
+ static bool operator!=(const InterpStringEnd& l, const string_t& r) { return l.value != r; }
+
+ using Resource = std::filesystem::path;
+
+
+
+ using token_t = std::variant<std::nullptr_t, Punc, Symbol, IdentSymbol, String, InterpStringBegin, InterpStringPart, InterpStringEnd, Resource, DocComment,  int, float>;
 
  class Token {
 	 token_t _value;
@@ -238,23 +355,77 @@ public:
 	 Token(int value, FilePosition fpos) : _value(value), _fpos(fpos) {}
 	 Token(float value, FilePosition fpos) : _value(value), _fpos(fpos) {}
 	 Token(std::filesystem::path value, FilePosition fpos) : _value(value), _fpos(fpos) {}
-	 Token(string_t value, FilePosition fpos, bool spacebefore = false) : _value(ident_t(value, spacebefore)), _fpos(fpos) {}
-	 Token(string_t value, FilePosition fpos, Interp type = Interp::None) : _value(stringlit_t(value, type)), _fpos(fpos) {}
+	 Token(string_t value, FilePosition fpos, bool spacebefore = false) : _value(spacebefore ? IdentSymbol{ value } : Symbol{ value }), _fpos(fpos) {}
+	// Token(string_t value, FilePosition fpos, Interp type = Interp::None) : _value(stringlit_t(value, type)), _fpos(fpos) {}
 	 operator const token_t& () const { return _value; }
 	 bool isPunc() const { return std::holds_alternative<Punc>(_value); }
 	 Punc punc() const { return std::get<Punc>(_value); }
 	 constexpr bool is_whitespace() const {
 		 if (auto v = std::get_if<Punc>(&_value))
-			 return *v == Punc::Space || *v == Punc::Space || *v == Punc::Space;
+			 return *v == Punc::Space || *v == Punc::Newline || *v == Punc::Tab;
 		 else
 			 return false;
 	 }
-	 constexpr bool is_ident() const { return std::holds_alternative<ident_t>(_value); }
-	 bool is_ident(string_t match) const { 
-		 if (auto v = std::get_if<ident_t>(&_value))
-			 return v->first == match; 
-		 else
-			 return false;
+	 constexpr bool is_ident() const { return std::holds_alternative<IdentSymbol>(_value) || std::holds_alternative<Symbol>(_value); }
+	 string_t get_symbol() const { return std::holds_alternative<Symbol>(_value) ? std::get<Symbol>(_value).value :  std::get<IdentSymbol>(_value).value; }
+	 bool is_ident(string_t match) const { return is_ident() ? get_symbol() == match : false;  }
+	 bool seperate_from(const Token& v) const {
+		 if (auto p = std::get_if<Punc>(&_value))
+			 if (*p == Punc::In ||
+				 *p == Punc::Eq ||
+				 *p == Punc::NotEq ||
+				 *p == Punc::Mod ||
+				 *p == Punc::And ||
+				 *p == Punc::BitAndAssign ||
+				 *p == Punc::Mul ||
+				 *p == Punc::Pow ||
+				 *p == Punc::MulAssign ||
+				 *p == Punc::Add ||
+				 *p == Punc::AddAssign ||
+				 *p == Punc::Sub ||
+				 *p == Punc::SubAssign ||
+				 *p == Punc::DivAssign ||
+				 *p == Punc::Colon ||
+				 *p == Punc::Less ||
+				 *p == Punc::LShift ||
+				 *p == Punc::LShiftAssign ||
+				 *p == Punc::LessEq ||
+				 *p == Punc::LessGreater ||
+				 *p == Punc::Assign ||
+				 *p == Punc::Greater ||
+				 *p == Punc::GreaterEq ||
+				 *p == Punc::RShift ||
+				 *p == Punc::RShiftAssign ||
+				 *p == Punc::QuestionMark ||
+				 *p == Punc::BitXorAssign ||
+				 *p == Punc::BitOrAssign ||
+				 *p == Punc::Or
+				) return true;// return true on these punc
+
+#if 0
+		 std::visit(overload{
+			 [](const IdentSymbol&, const auto) { return true;  },
+			 [](const Punc& p, const auto) { return p == ',';  },
+			 [](const IdentSymbol&,const  Punc&) { return false;  },
+			 [](const IdentSymbol&,const  InterpStringEnd&) { return false;  },
+			 [](const IdentSymbol&, const InterpStringPart&) { return false;  },
+			 [](const Symbol&,const  Punc&) { return false;  },
+			 [](const Symbol&, const InterpStringEnd&) { return false;  },
+			 [](const Symbol&, const InterpStringPart&) { return false;  },
+			 [](const Punc&, const IdentSymbol&) { return false;  },
+			 [](const Punc&, const Symbol&) { return false;  },
+			 [](const InterpStringBegin&, const IdentSymbol&) { return false;  },
+			 [](const InterpStringBegin&, const Symbol&) { return false;  },
+			 [](const InterpStringPart&, const IdentSymbol&) { return false;  },
+			 [](const InterpStringPart&, const Symbol&) { return false;  },
+
+			 [](IdentSymbol&, auto&) { return true;  },
+			 [](auto&, IdentSymbol&) { return true;  },
+			 [](Symbol&, auto&) { return true;  },
+			 [](auto&, Symbol&) { return true;  },
+
+			 }, _value, v);
+#endif 
 	 }
  };
 
@@ -402,4 +573,6 @@ namespace _private {
 		return nullptr;
 	}
 };
+#endif
+
 #endif

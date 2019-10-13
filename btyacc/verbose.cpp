@@ -6,7 +6,7 @@ static Yshort *null_rules;
 
 void verbose()
 {
-    register int i;
+    int i;
 
     if (!vflag) return;
 
@@ -30,8 +30,8 @@ void verbose()
 
 void log_unused()
 {
-    register int i;
-    register Yshort *p;
+    int i;
+    Yshort *p;
 
     fprintf(verbose_file, "\n\nRules never reduced:\n");
     for (i = 3; i < nrules; ++i)
@@ -49,7 +49,7 @@ void log_unused()
 
 void log_conflicts()
 {
-    register int i;
+    int i;
 
     fprintf(verbose_file, "\n\n");
     for (i = 0; i < nstates; i++)
@@ -90,8 +90,8 @@ void print_state(int state)
 
 void print_conflicts(int state)
 {
-    register int symbol, act, number;
-    register action *p;
+	int symbol, act, number;
+    action *p;
 
     symbol = act = number = -1;
     for (p = parser[state]; p; p = p->next)
@@ -137,12 +137,12 @@ void print_conflicts(int state)
 
 void print_core(int state)
 {
-    register int i;
-    register int k;
-    register int rule;
-    register core *statep;
-    register Yshort *sp;
-    register Yshort *sp1;
+    int i;
+    int k;
+    int rule;
+    core *statep;
+    Yshort *sp;
+    Yshort *sp1;
 
     statep = state_table[state];
     k = statep->nitems;
@@ -172,8 +172,8 @@ void print_core(int state)
 
 void print_nulls(int state)
 {
-    register action *p;
-    register int i, j, k, nnulls;
+    action *p;
+    int i, j, k, nnulls;
 
     nnulls = 0;
     for (p = parser[state]; p; p = p->next)
@@ -215,9 +215,9 @@ void print_nulls(int state)
 
 void print_actions(int stateno)
 {
-    register action *p;
-    register shifts *sp;
-    register int as;
+    action *p;
+    shifts *sp;
+    int as;
 
     if (stateno == final_state)
 	fprintf(verbose_file, "\t$end  accept\n");
@@ -241,8 +241,8 @@ void print_actions(int stateno)
 
 void print_shifts(action *p)
 {
-    register int count;
-    register action *q;
+    int count;
+    action *q;
 
     count = 0;
     for (q = p; q; q = q->next)
@@ -265,8 +265,8 @@ void print_shifts(action *p)
 
 void print_reductions(action *p, int defred)
 {
-    register int k, anyreds;
-    register action *q;
+    int k, anyreds;
+    action *q;
 
     anyreds = 0;
     for (q = p; q ; q = q->next)
@@ -301,10 +301,10 @@ void print_reductions(action *p, int defred)
 
 void print_gotos(int stateno)
 {
-    register int i, k;
-    register int as;
-    register Yshort *to_state;
-    register shifts *sp;
+    int i, k;
+    int as;
+    Yshort *to_state;
+    shifts *sp;
 
     putc('\n', verbose_file);
     sp = shift_table[stateno];

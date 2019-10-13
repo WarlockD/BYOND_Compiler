@@ -1,12 +1,12 @@
 #include "defs.h"
 
-typedef
-  struct shorts
-    {
-      struct shorts *next;
-      Yshort value;
-    }
-  shorts;
+
+struct shorts
+{
+	shorts* next;
+	Yshort value;
+};
+
 
 int tokensetsize;
 Yshort *lookaheads;
@@ -53,7 +53,7 @@ void lalr()
 
 void set_state_table()
 {
-    register core *sp;
+     core *sp;
 
     state_table = NEW2(nstates, core *);
     for (sp = first_state; sp; sp = sp->next)
@@ -64,7 +64,7 @@ void set_state_table()
 
 void set_accessing_symbol()
 {
-    register core *sp;
+     core *sp;
 
     accessing_symbol = NEW2(nstates, Yshort);
     for (sp = first_state; sp; sp = sp->next)
@@ -75,7 +75,7 @@ void set_accessing_symbol()
 
 void set_shift_table()
 {
-    register shifts *sp;
+     shifts *sp;
 
     shift_table = NEW2(nstates, shifts *);
     for (sp = first_shift; sp; sp = sp->next)
@@ -86,7 +86,7 @@ void set_shift_table()
 
 void set_reduction_table()
 {
-    register reductions *rp;
+     reductions *rp;
 
     reduction_table = NEW2(nstates, reductions *);
     for (rp = first_reduction; rp; rp = rp->next)
@@ -97,10 +97,10 @@ void set_reduction_table()
 
 void set_maxrhs()
 {
-  register Yshort *itemp;
-  register Yshort *item_end;
-  register int length;
-  register int max;
+   Yshort *itemp;
+   Yshort *item_end;
+   int length;
+   int max;
 
   length = 0;
   max = 0;
@@ -125,8 +125,8 @@ void set_maxrhs()
 
 void initialize_LA()
 {
-  register int i, j, k;
-  register reductions *rp;
+   int i, j, k;
+   reductions *rp;
 
   lookaheads = NEW2(nstates + 1, Yshort);
 
@@ -162,13 +162,13 @@ void initialize_LA()
 
 void set_goto_map()
 {
-  register shifts *sp;
-  register int i;
-  register int symbol;
-  register int k;
-  register Yshort *temp_map;
-  register int state2;
-  register int state1;
+   shifts *sp;
+   int i;
+   int symbol;
+   int k;
+   Yshort *temp_map;
+   int state2;
+   int state1;
 
   goto_map = NEW2(nvars + 1, Yshort) - ntokens;
   temp_map = NEW2(nvars + 1, Yshort) - ntokens;
@@ -231,10 +231,10 @@ void set_goto_map()
 
 int map_goto(int state, int symbol)
 {
-    register int high;
-    register int low;
-    register int middle;
-    register int s;
+     int high;
+     int low;
+     int middle;
+     int s;
 
     low = goto_map[symbol];
     high = goto_map[symbol + 1];
@@ -257,18 +257,18 @@ int map_goto(int state, int symbol)
 
 void initialize_F()
 {
-  register int i;
-  register int j;
-  register int k;
-  register shifts *sp;
-  register Yshort *edge;
-  register unsigned *rowp;
-  register Yshort *rp;
-  register Yshort **reads;
-  register int nedges;
-  register int stateno;
-  register int symbol;
-  register int nwords;
+   int i;
+   int j;
+   int k;
+   shifts *sp;
+   Yshort *edge;
+   unsigned *rowp;
+   Yshort *rp;
+   Yshort **reads;
+   int nedges;
+   int stateno;
+   int symbol;
+   int nwords;
 
   nwords = ngotos * tokensetsize;
   F = NEW2(nwords, unsigned);
@@ -334,23 +334,23 @@ void initialize_F()
 
 void build_relations()
 {
-  register int i;
-  register int j;
-  register int k;
-  register Yshort *rulep;
-  register Yshort *rp;
-  register shifts *sp;
-  register int length;
-  register int nedges;
-  register int done;
-  register int state1;
-  register int stateno;
-  register int symbol1;
-  register int symbol2;
-  register Yshort *shortp;
-  register Yshort *edge;
-  register Yshort *states;
-  register Yshort **new_includes;
+   int i;
+   int j;
+   int k;
+   Yshort *rulep;
+   Yshort *rp;
+   shifts *sp;
+   int length;
+   int nedges;
+   int done;
+   int state1;
+   int stateno;
+   int symbol1;
+   int symbol2;
+   Yshort *shortp;
+   Yshort *edge;
+   Yshort *states;
+   Yshort **new_includes;
 
   includes = NEW2(ngotos, Yshort *);
   edge = NEW2(ngotos + 1, Yshort);
@@ -426,9 +426,9 @@ void build_relations()
 
 void add_lookback_edge(int stateno, int ruleno, int gotono)
 {
-    register int i, k;
-    register int found;
-    register shorts *sp;
+     int i, k;
+     int found;
+     shorts *sp;
 
     i = lookaheads[stateno];
     k = lookaheads[stateno + 1];
@@ -452,12 +452,12 @@ void add_lookback_edge(int stateno, int ruleno, int gotono)
 
 Yshort **transpose(Yshort **R, int n)
 {
-  register Yshort **new_R;
-  register Yshort **temp_R;
-  register Yshort *nedges;
-  register Yshort *sp;
-  register int i;
-  register int k;
+   Yshort **new_R;
+   Yshort **temp_R;
+   Yshort *nedges;
+   Yshort *sp;
+   int i;
+   int k;
 
   nedges = NEW2(n, Yshort);
 
@@ -513,10 +513,10 @@ void compute_FOLLOWS()
 
 void compute_lookaheads()
 {
-  register int i, n;
-  register unsigned *fp1, *fp2, *fp3;
-  register shorts *sp, *next;
-  register unsigned *rowp;
+   int i, n;
+   unsigned *fp1, *fp2, *fp3;
+   shorts *sp, *next;
+   unsigned *rowp;
 
   rowp = LA;
   n = lookaheads[nstates];
@@ -547,7 +547,7 @@ void compute_lookaheads()
 
 void digraph(Yshort **relation)
 {
-  register int i;
+   int i;
 
   infinity = ngotos + 2;
   INDEX = NEW2(ngotos + 1, Yshort);
@@ -571,11 +571,11 @@ void digraph(Yshort **relation)
 
 void traverse(int i)
 {
-  register unsigned *fp1;
-  register unsigned *fp2;
-  register unsigned *fp3;
-  register int j;
-  register Yshort *rp;
+   unsigned *fp1;
+   unsigned *fp2;
+   unsigned *fp3;
+   int j;
+   Yshort *rp;
 
   int height;
   unsigned *base;

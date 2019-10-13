@@ -26,16 +26,21 @@ static Yshort **kernel_base;
 static Yshort **kernel_end;
 static Yshort *kernel_items;
 
+template<typename T, typename AT>
+static inline T* allocate(size_t array_count) {
+	AT* tmp = new AT[sizeof(T) + ((array_count - 1) * sizeof(AT))];
+	return new(tmp) T;
+}
 
 void allocate_itemsets()
 {
-    register Yshort *itemp;
-    register Yshort *item_end;
-    register int symbol;
-    register int i;
-    register int count;
-    register int max;
-    register Yshort *symbol_count;
+     Yshort *itemp;
+     Yshort *item_end;
+     int symbol;
+     int i;
+     int count;
+     int max;
+     Yshort *symbol_count;
 
     count = 0;
     symbol_count = NEW2(nsyms, Yshort);
@@ -80,9 +85,9 @@ void allocate_storage()
 
 void append_states()
 {
-    register int i;
-    register int j;
-    register int symbol;
+     int i;
+     int j;
+     int symbol;
 
 #ifdef	TRACE
     fprintf(stderr, "Entering append_states()\n");
@@ -149,13 +154,13 @@ void generate_states()
 
 int get_state(int symbol)
 {
-    register int key;
-    register Yshort *isp1;
-    register Yshort *isp2;
-    register Yshort *iend;
-    register core *sp;
-    register int found;
-    register int n;
+     int key;
+     Yshort *isp1;
+     Yshort *isp2;
+     Yshort *iend;
+     core *sp;
+     int found;
+     int n;
 
 #ifdef	TRACE
     fprintf(stderr, "Entering get_state(%d)\n", symbol);
@@ -212,9 +217,9 @@ int get_state(int symbol)
 
 void initialize_states()
 {
-    register int i;
-    register Yshort *start_derives;
-    register core *p;
+     int i;
+     Yshort *start_derives;
+     core *p;
 
     start_derives = derives[start_symbol];
     for (i = 0; start_derives[i] >= 0; ++i)
@@ -239,11 +244,11 @@ void initialize_states()
 
 void new_itemsets()
 {
-    register int i;
-    register int shiftcount;
-    register Yshort *isp;
-    register Yshort *ksp;
-    register int symbol;
+     int i;
+     int shiftcount;
+     Yshort *isp;
+     Yshort *ksp;
+     int symbol;
 
     for (i = 0; i < nsyms; i++)
 	kernel_end[i] = 0;
@@ -273,13 +278,14 @@ void new_itemsets()
 
 
 
+
 core *new_state(int symbol)
 {
-    register int n;
-    register core *p;
-    register Yshort *isp1;
-    register Yshort *isp2;
-    register Yshort *iend;
+     int n;
+     core *p;
+     Yshort *isp1;
+     Yshort *isp2;
+     Yshort *iend;
 
 #ifdef	TRACE
     fprintf(stderr, "Entering new_state(%d)\n", symbol);
@@ -292,7 +298,7 @@ core *new_state(int symbol)
     iend = kernel_end[symbol];
     n = iend - isp1;
 
-    p = (core *) allocate((unsigned) (sizeof(core) + (n - 1) * sizeof(Yshort)));
+	p = allocate< core, Yshort>(n);
     p->accessing_symbol = symbol;
     p->number = nstates;
     p->nitems = n;
@@ -388,13 +394,14 @@ void show_shifts()
 
 void save_shifts()
 {
-    register shifts *p;
-    register Yshort *sp1;
-    register Yshort *sp2;
-    register Yshort *send;
+     shifts *p;
+     Yshort *sp1;
+     Yshort *sp2;
+     Yshort *send;
 
-    p = (shifts *) allocate((unsigned) (sizeof(shifts) +
-			(nshifts - 1) * sizeof(Yshort)));
+
+	 p = allocate<shifts, Yshort>(nshifts);
+
 
     p->number = this_state->number;
     p->nshifts = nshifts;
@@ -422,58 +429,58 @@ void save_shifts()
 
 void save_reductions()
 {
-    register Yshort *isp;
-    register Yshort *rp1;
-    register Yshort *rp2;
-    register int item;
-    register int count;
-    register reductions *p;
-    register Yshort *rend;
+	Yshort* isp;
+	Yshort* rp1;
+	Yshort* rp2;
+	int item;
+	int count;
+	reductions* p;
+	Yshort* rend;
 
-    count = 0;
-    for (isp = itemset; isp < itemsetend; isp++)
-    {
-	item = ritem[*isp];
-	if (item < 0)
+	count = 0;
+	for (isp = itemset; isp < itemsetend; isp++)
 	{
-	    redset[count++] = -item;
+		item = ritem[*isp];
+		if (item < 0)
+		{
+			redset[count++] = -item;
+		}
 	}
-    }
 
-    if (count)
-    {
-	p = (reductions *) allocate((unsigned) (sizeof(reductions) +
-					(count - 1) * sizeof(Yshort)));
-
-	p->number = this_state->number;
-	p->nreds = count;
-
-	rp1 = redset;
-	rp2 = p->rules;
-	rend = rp1 + count;
-
-	while (rp1 < rend)
-	    *rp2++ = *rp1++;
-
-	if (last_reduction)
+	if (count)
 	{
-	    last_reduction->next = p;
-	    last_reduction = p;
+		p = allocate<reductions, Yshort>(count);
+
+
+		p->number = this_state->number;
+		p->nreds = count;
+
+		rp1 = redset;
+		rp2 = p->rules;
+		rend = rp1 + count;
+
+		while (rp1 < rend)
+			* rp2++ = *rp1++;
+
+		if (last_reduction)
+		{
+			last_reduction->next = p;
+			last_reduction = p;
+		}
+		else
+		{
+			first_reduction = p;
+			last_reduction = p;
+		}
 	}
-	else
-	{
-	    first_reduction = p;
-	    last_reduction = p;
-	}
-    }
 }
 
 
 void set_derives()
 {
-    register int i, k;
-    register int lhs;
-    register Yshort *rules;
+     int i, k;
+     int lhs;
+     Yshort *rules;
 
     derives = NEW2(nsyms, Yshort *);
     rules = NEW2(nvars + nrules, Yshort);
@@ -508,8 +515,8 @@ void free_derives()
 #ifdef	DEBUG
 void print_derives()
 {
-    register int i;
-    register Yshort *sp;
+     int i;
+     Yshort *sp;
 
     printf("\nDERIVES\n\n");
 
@@ -530,15 +537,14 @@ void print_derives()
 
 void set_nullable()
 {
-    register int i, j;
-    register int empty;
+     int i, j;
+     int empty;
     int done;
 
-    nullable = MALLOC(nsyms);
-    if (nullable == 0) no_space();
-
-    for (i = 0; i < nsyms; ++i)
-	nullable[i] = 0;
+	nullable.resize(nsyms);
+	
+    for (int i = 0; i < nsyms; ++i)
+		nullable[i] = false;
 
     done = 0;
     while (!done)
@@ -558,7 +564,7 @@ void set_nullable()
 		j = rlhs[-j];
 		if (!nullable[j])
 		{
-		    nullable[j] = 1;
+		    nullable[j] = true;
 		    done = 0;
 		}
 	    }
@@ -579,7 +585,7 @@ void set_nullable()
 
 void free_nullable()
 {
-    FREE(nullable);
+	nullable.clear();
 }
 
 

@@ -2,20 +2,20 @@
 
 static int nvectors;
 static int nentries;
-static Yshort **froms;
-static Yshort **tos;
-static Yshort *conflicts, nconflicts;
-static Yshort *tally;
-static Yshort *width;
-static Yshort *state_count;
-static Yshort *order;
-static Yshort *base;
-static Yshort *pos;
-static int maxtable;
-static Yshort *table;
-static Yshort *check;
-static int lowzero;
-static int high;
+static Yshort** froms = NULL;
+static Yshort **tos = NULL;
+static Yshort *conflicts = NULL, nconflicts;
+static Yshort *tally = NULL;
+static Yshort *width = NULL;
+static Yshort *state_count = NULL;
+static Yshort *order = NULL;
+static Yshort *base = NULL;
+static Yshort *pos = NULL;
+static int maxtable = NULL;
+static Yshort *table = NULL;
+static Yshort *check = NULL;
+static int lowzero = NULL;
+static int high = NULL;
 
 
 void output()
@@ -42,12 +42,11 @@ void output()
 
 void output_rule_data()
 {
-    register int i;
-    register int j;
+    int i;
+    int j;
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yylhs[] = {%42d,",
+
+    fprintf(output_file, "static constexpr Yshort yylhs[] = {%42d,",
 	    symbol_value[start_symbol]);
 
     j = 10;
@@ -67,9 +66,8 @@ void output_rule_data()
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yylen[] = {%42d,", 2);
+
+    fprintf(output_file, "static constexpr Yshort yylen[] = {%42d,", 2);
 
     j = 10;
     for (i = 3; i < nrules; i++)
@@ -92,11 +90,9 @@ void output_rule_data()
 
 void output_yydefred()
 {
-    register int i, j;
+    int i, j;
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yydefred[] = {%39d,",
+    fprintf(output_file, "static constexpr Yshort yydefred[] = {%39d,",
 	    (defred[0] ? defred[0] - 2 : 0));
 
     j = 10;
@@ -167,11 +163,11 @@ int find_conflict_base(int cbase)
 
 void token_actions()
 {
-    register int i, j;
-    register int shiftcount, reducecount, conflictcount, csym, cbase;
-    register int max, min;
-    register Yshort *actionrow, *r, *s;
-    register action *p;
+    int i, j;
+    int shiftcount, reducecount, conflictcount, csym, cbase;
+    int max, min;
+    Yshort *actionrow, *r, *s;
+    action *p;
 
     actionrow = NEW2(3*ntokens, Yshort);
     for (i = 0; i < nstates; ++i) {
@@ -278,14 +274,13 @@ void token_actions()
 
 void goto_actions()
 {
-    register int i, j, k;
+    int i, j, k;
 
     state_count = NEW2(nstates, Yshort);
 
     k = default_goto(start_symbol + 1);
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yydgoto[] = {%40d,", k);
+
+    fprintf(output_file, "static constexpr Yshort yydgoto[] = {%40d,", k);
     save_column(start_symbol + 1, k);
 
     j = 10;
@@ -312,11 +307,11 @@ void goto_actions()
 
 int default_goto(int symbol)
 {
-    register int i;
-    register int m;
-    register int n;
-    register int default_state;
-    register int max;
+    int i;
+    int m;
+    int n;
+    int default_state;
+    int max;
 
     m = goto_map[symbol];
     n = goto_map[symbol + 1];
@@ -347,14 +342,14 @@ int default_goto(int symbol)
 
 void save_column(int symbol, int default_state)
 {
-    register int i;
-    register int m;
-    register int n;
-    register Yshort *sp;
-    register Yshort *sp1;
-    register Yshort *sp2;
-    register int count;
-    register int symno;
+    int i;
+    int m;
+    int n;
+    Yshort *sp;
+    Yshort *sp1;
+    Yshort *sp2;
+    int count;
+    int symno;
 
     m = goto_map[symbol];
     n = goto_map[symbol + 1];
@@ -387,11 +382,11 @@ void save_column(int symbol, int default_state)
 
 void sort_actions()
 {
-  register int i;
-  register int j;
-  register int k;
-  register int t;
-  register int w;
+  int i;
+  int j;
+  int k;
+  int t;
+  int w;
 
   order = NEW2(nvectors, Yshort);
   nentries = 0;
@@ -422,9 +417,9 @@ void sort_actions()
 
 void pack_table()
 {
-    register int i;
-    register int place;
-    register int state;
+    int i;
+    int place;
+    int state;
 
     base = NEW2(nvectors, Yshort);
     pos = NEW2(nentries, Yshort);
@@ -488,13 +483,13 @@ void pack_table()
 
 int matching_vector(int vector)
 {
-    register int i;
-    register int j;
-    register int k;
-    register int t;
-    register int w;
-    register int match;
-    register int prev;
+    int i;
+    int j;
+    int k;
+    int t;
+    int w;
+    int match;
+    int prev;
 
     i = order[vector];
     if (i >= 2*nstates)
@@ -527,12 +522,12 @@ int matching_vector(int vector)
 
 int pack_vector(int vector)
 {
-    register int i, j, k, l;
-    register int t;
-    register int loc;
-    register int ok;
-    register Yshort *from;
-    register Yshort *to;
+    int i, j, k, l;
+    int t;
+    int loc;
+    int ok;
+    Yshort *from;
+    Yshort *to;
     int newmax;
 
     i = order[vector];
@@ -562,9 +557,9 @@ int pack_vector(int vector)
 		newmax = maxtable;
 		do { newmax += 200; } while (newmax <= loc);
 		table = (Yshort *) REALLOC(table, newmax*sizeof(Yshort));
-		if (table == 0) no_space();
+		if (table == NULL) no_space();
 		check = (Yshort *) REALLOC(check, newmax*sizeof(Yshort));
-		if (check == 0) no_space();
+		if (check ==NULL) no_space();
 		for (l  = maxtable; l < newmax; ++l)
 		{
 		    table[l] = 0;
@@ -603,11 +598,10 @@ int pack_vector(int vector)
 
 void output_base()
 {
-    register int i, j;
+    int i, j;
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yysindex[] = {%39d,", base[0]);
+
+    fprintf(output_file, "static constexpr Yshort yysindex[] = {%39d,", base[0]);
     j = 10;
     for (i = 1; i < nstates; i++) {
 	if (j >= 10) {
@@ -620,9 +614,8 @@ void output_base()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yyrindex[] = {%39d,", base[nstates]);
+
+    fprintf(output_file, "static constexpr Yshort yyrindex[] = {%39d,", base[nstates]);
     j = 10;
     for (i = nstates + 1; i < 2*nstates; i++) {
 	if (j >= 10) {
@@ -635,9 +628,8 @@ void output_base()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yycindex[] = {%39d,", base[2*nstates]);
+
+    fprintf(output_file, "static constexpr Yshort yycindex[] = {%39d,", base[2*nstates]);
     j = 10;
     for (i = 2*nstates + 1; i < 3*nstates; i++) {
 	if (j >= 10) {
@@ -651,9 +643,8 @@ void output_base()
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yygindex[] = {%39d,",
+
+    fprintf(output_file, "static constexpr Yshort yygindex[] = {%39d,",
 	    base[3*nstates]);
     j = 10;
     for (i = 3*nstates + 1; i < nvectors - 1; i++) {
@@ -674,8 +665,8 @@ void output_base()
 
 void output_table()
 {
-    register int i;
-    register int j;
+    int i;
+    int j;
 
     ++outline;
 
@@ -685,10 +676,9 @@ void output_table()
       exit(1);
     }
 
-    fprintf(code_file, "#define YYTABLESIZE %d\n", high);
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yytable[] = {%40d,", table[0]);
+    fprintf(code_file, "static constexpr size_t YYTABLESIZE = %d\n", high);
+
+    fprintf(output_file, "static constexpr Yshort yytable[] = {%40d,", table[0]);
 
     j = 10;
     for (i = 1; i <= high; i++)
@@ -714,12 +704,11 @@ void output_table()
 
 void output_check()
 {
-    register int i;
-    register int j;
+    int i;
+    int j;
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yycheck[] = {%40d,", check[0]);
+
+    fprintf(output_file, "static constexpr Yshort yycheck[] = {%40d,", check[0]);
 
     j = 10;
     for (i = 1; i <= high; i++)
@@ -743,12 +732,11 @@ void output_check()
 
 void output_ctable()
 {
-    register int i;
-    register int j;
+    int i;
+    int j;
 
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "int yyctable[] = {%39d,", conflicts ?
+   
+    fprintf(output_file, "static constexpr Yshort yyctable[] = {%39d,", conflicts ?
 	    conflicts[0] : 0);
 
     j = 10;
@@ -772,10 +760,10 @@ void output_ctable()
 }
 
 
-int is_C_identifier(char *name)
+int is_C_identifier(const char * name)
 {
-    register char *s;
-    register int c;
+    char *s;
+    int c;
 
     s = name;
     c = *s;
@@ -805,8 +793,8 @@ int is_C_identifier(char *name)
 
 void output_defines()
 {
-    register int c, i;
-    register char *s;
+    int c, i;
+    char *s;
     FILE *dc_file;
 
     if(dflag) {
@@ -845,7 +833,7 @@ void output_defines()
     }
 
     ++outline;
-    fprintf(dc_file, "#define YYERRCODE %d\n", symbol_value[1]);
+    fprintf(dc_file, "static constexpr Yshort YYERRCODE = %d;\n", symbol_value[1]);
 
     if (dflag && unionized)
     {
@@ -855,7 +843,7 @@ void output_defines()
 	while ((c = getc(union_file)) != EOF) {
 	  putc(c, defines_file);
 	}
-	fprintf(defines_file, "extern YYSTYPE yylval;\n");
+	fprintf(defines_file, "YYSTYPE yylval;\n");
     }
 
     if(dflag) {
@@ -866,9 +854,9 @@ void output_defines()
 
 void output_stored_text()
 {
-    register int c;
-    register FILE *in, *out;
-    register int state;	/* 0=middle of line, 1=start of line, 2=seen '#' */
+    int c;
+    FILE *in, *out;
+    int state;	/* 0=middle of line, 1=start of line, 2=seen '#' */
 
     state = 1;
     fclose(text_file);
@@ -900,16 +888,16 @@ void output_stored_text()
 
 void output_debug()
 {
-    register int i, j, k, max;
+    int i, j, k, max;
     char **symnam, *s;
 
     ++outline;
-    fprintf(code_file, "#define YYFINAL %d\n", final_state);
+    fprintf(code_file, "static constexpr Yshort YYFINAL = %d;\n", final_state);
     outline += 3;
-    fprintf(code_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
+    fprintf(code_file, "#ifndef YYDEBUG\nstatic constexpr Yshort YYDEBUG = %d;\n#endif\n",
 	    tflag);
     if (rflag)
-	fprintf(output_file, "#ifndef YYDEBUG\n#define YYDEBUG %d\n#endif\n",
+	fprintf(output_file, "#ifndef YYDEBUG\nstatic constexpr Yshort YYDEBUG = %d;\n#endif\n",
 		tflag);
 
     max = 0;
@@ -917,7 +905,7 @@ void output_debug()
 	if (symbol_value[i] > max)
 	    max = symbol_value[i];
     ++outline;
-    fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
+    fprintf(code_file, "static constexpr Yshort YYMAXTOKEN =%d;\n", max);
 
     symnam = (char **) MALLOC((max+1)*sizeof(char *));
     if (symnam == 0) no_space();
@@ -932,9 +920,8 @@ void output_debug()
 
     if (!rflag) ++outline;
     fprintf(output_file, "#if YYDEBUG\n");
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "char *yyname[] = {");
+
+    fprintf(output_file, "static constexpr const char *yyname[] = {");
     j = 80;
     for (i = 0; i <= max; ++i)
     {
@@ -1060,9 +1047,8 @@ void output_debug()
     FREE(symnam);
 
     if (!rflag) ++outline;
-    if (!rflag)
-	fprintf(output_file, "static ");
-    fprintf(output_file, "char *yyrule[] = {\n");
+
+    fprintf(output_file, "static constexpr char *yyrule[] = {\n");
     for (i = 2; i < nrules; ++i)
     {
 	fprintf(output_file, "\"%s :", symbol_name[rlhs[i]]);
@@ -1129,8 +1115,8 @@ void output_stype()
 
 void output_trailing_text()
 {
-    register int c, last;
-    register FILE *in, *out;
+    int c, last;
+    FILE *in, *out;
 
     if (line == 0)
 	return;
@@ -1186,9 +1172,9 @@ void output_trailing_text()
 
 void output_semantic_actions()
 {
-    register int c, last;
-    register FILE *out;
-    register int state;	/* 0=middle of line, 1=start of line, 2=seen '#' */
+    int c, last;
+    FILE *out;
+    int state;	/* 0=middle of line, 1=start of line, 2=seen '#' */
 
     state = 1;
     fclose(action_file);
@@ -1229,7 +1215,7 @@ void output_semantic_actions()
 
 void free_itemsets()
 {
-    register core *cp, *next;
+    core *cp, *next;
 
     FREE(state_table);
     for (cp = first_state; cp; cp = next)
@@ -1242,7 +1228,7 @@ void free_itemsets()
 
 void free_shifts()
 {
-    register shifts *sp, *next;
+    shifts *sp, *next;
 
     FREE(shift_table);
     for (sp = first_shift; sp; sp = next)
@@ -1256,7 +1242,7 @@ void free_shifts()
 
 void free_reductions()
 {
-    register reductions *rp, *next;
+    reductions *rp, *next;
 
     FREE(reduction_table);
     for (rp = first_reduction; rp; rp = next)
@@ -1268,7 +1254,7 @@ void free_reductions()
 
 
 
-void write_section(char *section_name)
+void write_section(const char *section_name)
 {
     char **section;
     FILE *fp;

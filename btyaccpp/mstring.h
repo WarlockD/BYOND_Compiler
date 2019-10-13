@@ -8,11 +8,11 @@
 #include <string_view>
 
 class string_t {
-	static constexpr std::string_view empty_string = "";
+	static constexpr std::string_view empty_string = std::string_view();
 	std::string_view _value;
 	static std::string_view _lookup(std::string_view sv);
 public:
-	constexpr string_t() : _value(empty_string) {}
+	constexpr string_t() : _value(nullptr) {}
 
 
 	string_t(const string_t& copy) = default;
@@ -21,10 +21,13 @@ public:
 	template<size_t N> // captures string literals
 	string_t(const char (&s)[N]) : string_t(s,N-1) {}
 	string_t(const std::string& str) : string_t(_lookup(str)) {}
+	std::string_view str() const { return _value; }
 
-	operator const std::string_view&() const { return _value; }
+	operator std::string_view() const { return _value; }
+
 	bool operator==(const string_t& s) const { return _value.data() == s._value.data(); }
 	bool operator!=(const string_t& s) const { return _value.data() != s._value.data(); }
+	bool operator!() const { return _value == empty_string; }
 };
 
 namespace std {

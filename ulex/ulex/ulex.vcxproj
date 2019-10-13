@@ -131,8 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\uyacc\y.tab.cpp" />
-    <ClCompile Include="parse.cpp" />
+    <ClCompile Include="ebnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\uyacc\parser.y" />

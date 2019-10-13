@@ -12,10 +12,10 @@ bucket *first_symbol;
 bucket *last_symbol;
 
 
-int hash(char *name)
+int hash(const char *name)
 {
-    register char *s;
-    register int c, k;
+	const  char *s;
+    int c, k;
 
     assert(name && *name);
     s = name;
@@ -27,44 +27,39 @@ int hash(char *name)
 }
 
 
-bucket *make_bucket(char *name)
+bucket *make_bucket(const char *name)
 {
-    register bucket *bp;
+    bucket *bp;
 
     assert(name);
     bp = (bucket *) MALLOC(sizeof(bucket));
     if (bp == 0) no_space();
     bp->link = 0;
     bp->next = 0;
-    bp->name = MALLOC(strlen(name) + 1);
-    if (bp->name == 0) no_space();
-    bp->tag = 0;
+	bp->name = name;
+    bp->tag = "";
     bp->value = UNDEFINED;
     bp->index = 0;
     bp->prec = 0;
-    bp->class = UNKNOWN;
+    bp->cclass = UNKNOWN;
     bp->assoc = TOKEN;
-    bp->args = -1;
-    bp->argnames = 0;
-    bp->argtags = 0;
-
-    if (bp->name == 0) no_space();
-    strcpy(bp->name, name);
+    bp->argnames.clear();
+    bp->argtags.clear();
 
     return (bp);
 }
 
 
-bucket *lookup(char *name)
+bucket *lookup(const char *name)
 {
-    register bucket *bp, **bpp;
+    bucket *bp, **bpp;
 
     bpp = symbol_table + hash(name);
     bp = *bpp;
 
     while (bp)
     {
-	if (strcmp(name, bp->name) == 0) return (bp);
+	if (bp->name == name) return (bp);
 	bpp = &bp->link;
 	bp = *bpp;
     }
@@ -79,8 +74,8 @@ bucket *lookup(char *name)
 
 void create_symbol_table()
 {
-    register int i;
-    register bucket *bp;
+    int i;
+    bucket *bp;
 
     symbol_table = (bucket **) MALLOC(TABLE_SIZE*sizeof(bucket *));
     if (symbol_table == 0) no_space();
@@ -89,7 +84,7 @@ void create_symbol_table()
 
     bp = make_bucket("error");
     bp->index = 1;
-    bp->class = TERM;
+    bp->cclass = TERM;
 
     first_symbol = bp;
     last_symbol = bp;
@@ -106,7 +101,7 @@ void free_symbol_table()
 
 void free_symbols()
 {
-    register bucket *p, *q;
+    bucket *p, *q;
 
     for (p = first_symbol; p; p = q)
     {

@@ -10,12 +10,12 @@ static unsigned *EFF;
 
 void set_EFF()
 {
-    register unsigned *row;
-    register int symbol;
-    register Yshort *sp;
-    register int rowsize;
-    register int i;
-    register int rule;
+     unsigned *row;
+     int symbol;
+     Yshort *sp;
+     int rowsize;
+     int i;
+     int rule;
 
     rowsize = WORDSIZE(nvars);
     EFF = NEW2(nvars * rowsize, unsigned);
@@ -46,12 +46,12 @@ void set_EFF()
 
 void set_first_derives()
 {
-  register unsigned *rrow;
-  register unsigned *vrow;
-  register int j;
-  register unsigned mask;
-  register unsigned cword;
-  register Yshort *rp;
+   unsigned *rrow;
+   unsigned *vrow;
+   int j;
+   unsigned mask;
+   unsigned cword;
+   Yshort *rp;
 
   int rule;
   int i;
@@ -103,13 +103,13 @@ void set_first_derives()
 
 void closure(Yshort *nucleus, int n)
 {
-    register int ruleno;
-    register unsigned word;
-    register unsigned mask;
-    register Yshort *csp;
-    register unsigned *dsp;
-    register unsigned *rsp;
-    register int rulesetsize;
+     int ruleno;
+     unsigned word;
+     unsigned mask;
+     Yshort *csp;
+     unsigned *dsp;
+     unsigned *rsp;
+     int rulesetsize;
 
     Yshort *csend;
     unsigned *rsend;
@@ -186,7 +186,7 @@ void finalize_closure()
 
 void print_closure(int n)
 {
-  register Yshort *isp;
+   Yshort *isp;
 
   printf("\n\nn = %d\n\n", n);
   for (isp = itemset; isp < itemsetend; isp++)
@@ -196,10 +196,10 @@ void print_closure(int n)
 
 void print_EFF()
 {
-    register int i, j;
-    register unsigned *rowp;
-    register unsigned word;
-    register unsigned mask;
+     int i, j;
+     unsigned *rowp;
+     unsigned word;
+     unsigned mask;
 
     printf("\n\nEpsilon Free Firsts\n");
 
@@ -228,11 +228,11 @@ void print_EFF()
 
 void print_first_derives()
 {
-  register int i;
-  register int j;
-  register unsigned *rp;
-  register unsigned cword;
-  register unsigned mask;
+   int i;
+   int j;
+   unsigned *rp;
+   unsigned cword;
+   unsigned mask;
 
   printf("\n\n\nFirst Derives\n");
 

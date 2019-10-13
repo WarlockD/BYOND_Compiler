@@ -1,0 +1,16 @@
+Back
+Airlock:
+crimson: Timing
+magenta: Main Power 2
+silver: High Voltage Circuit 2
+cyan: Auxiliary Power 2
+grey: ID Scan
+violet: AI Connection
+brown: Auxiliary Power 1
+blue: Main Power 1
+pink: High Voltage Circuit 1
+yellow: High Voltage Ground
+gold: Bolt Lights
+orange: Bolts
+red: Open
+purple: Safety

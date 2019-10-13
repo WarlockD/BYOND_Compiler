@@ -77,6 +77,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -89,6 +90,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,6 +105,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -119,6 +122,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,22 +131,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="closure.c" />
-    <ClCompile Include="error.c" />
-    <ClCompile Include="lalr.c" />
-    <ClCompile Include="lr0.c" />
-    <ClCompile Include="main.c" />
-    <ClCompile Include="mkpar.c" />
-    <ClCompile Include="mstring.c" />
-    <ClCompile Include="output.c" />
-    <ClCompile Include="reader.c" />
-    <ClCompile Include="readskel.c" />
-    <ClCompile Include="skeleton.c" />
-    <ClCompile Include="symtab.c" />
-    <ClCompile Include="verbose.c" />
-    <ClCompile Include="warshall.c" />
+    <ClCompile Include="closure.cpp" />
+    <ClCompile Include="error.cpp" />
+    <ClCompile Include="lalr.cpp" />
+    <ClCompile Include="lr0.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="mkpar.cpp" />
+    <ClCompile Include="mstring.cpp" />
+    <ClCompile Include="output.cpp" />
+    <ClCompile Include="reader.cpp" />
+    <ClCompile Include="readskel.cpp" />
+    <ClCompile Include="skeleton.cpp" />
+    <ClCompile Include="symtab.cpp" />
+    <ClCompile Include="verbose.cpp" />
+    <ClCompile Include="warshall.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="btyaccpa.ske">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
+      <FileType>Document</FileType>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </Text>
     <None Include="skel2c" />
   </ItemGroup>
   <ItemGroup>

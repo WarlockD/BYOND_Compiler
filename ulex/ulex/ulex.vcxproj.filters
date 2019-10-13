@@ -15,10 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="parse.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\uyacc\y.tab.cpp">
+    <ClCompile Include="ebnf_parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

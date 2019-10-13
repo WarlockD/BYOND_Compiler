@@ -59,7 +59,7 @@ static char **fin_section(void)
   return rv;
 }
 
-void read_skel(char *name)
+void read_skel(const char *name)
 {
 char	buf[256];
 int	section = -2;
@@ -101,7 +101,7 @@ FILE	*fp;
 	      add_fmt("#line %d \"%s\"", line+1, name);
 	    else if (*p)
 	      error(0, buf, p, "line %d of \"%s\", bad section name",
-		    line, name); 
+		    line); 
         } else if (section >= 0) {
 	    add_string(buf);
 	}

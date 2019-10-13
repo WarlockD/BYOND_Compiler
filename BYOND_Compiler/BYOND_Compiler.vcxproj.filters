@@ -23,6 +23,7 @@
     <ClCompile Include="util.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
+    <ClCompile Include="lodepng.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccp_processor.h">
@@ -43,8 +44,23 @@
     <ClInclude Include="util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lodepng.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="entt.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="preprocessor.y" />
   </ItemGroup>
 </Project>

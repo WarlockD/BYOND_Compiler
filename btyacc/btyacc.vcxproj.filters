@@ -15,46 +15,46 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="closure.c">
+    <ClCompile Include="closure.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="error.c">
+    <ClCompile Include="error.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lalr.c">
+    <ClCompile Include="lalr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="lr0.c">
+    <ClCompile Include="lr0.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="main.c">
+    <ClCompile Include="mkpar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mkpar.c">
+    <ClCompile Include="mstring.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mstring.c">
+    <ClCompile Include="output.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="output.c">
+    <ClCompile Include="reader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="reader.c">
+    <ClCompile Include="readskel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="readskel.c">
+    <ClCompile Include="skeleton.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="skeleton.c">
+    <ClCompile Include="symtab.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="symtab.c">
+    <ClCompile Include="verbose.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="verbose.c">
+    <ClCompile Include="warshall.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="warshall.c">
+    <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -68,5 +68,8 @@
     <ClInclude Include="mstring.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="btyaccpa.ske" />
   </ItemGroup>
 </Project>
