@@ -32,6 +32,7 @@
     <ClInclude Include="error.hpp" />
     <ClInclude Include="ExprParser.h" />
     <ClInclude Include="Lex.hpp" />
+    <ClInclude Include="LinkedHashMap.hpp" />
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="queue.h" />
@@ -49,6 +50,11 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">y.tab.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">y.tab.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">y.tab.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="lexer.l">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">c:\bin\reflex lexer.l</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">lex.yy.cpp</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -125,7 +131,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\source\SFML-2.5.1\include;$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
+    <IncludePath>E:\GitHub\RE-flex\include;E:\source\SFML-2.5.1\include;$(ProjectDir)..\PEGTL\include;$(IncludePath)</IncludePath>
     <LibraryPath>E:\source\SFML-2.5.1\bin\lib\Debug;$(LibraryPath)</LibraryPath>
     <ExecutablePath>E:\source\SFML-2.5.1\bin\lib\Debug;$(ExecutablePath)</ExecutablePath>
     <OutDir>E:\source\SFML-2.5.1\bin\lib\Debug\</OutDir>

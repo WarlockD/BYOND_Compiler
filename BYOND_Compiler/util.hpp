@@ -118,7 +118,7 @@ namespace std {
 	};
 };
 #else
-
+#if 0
 class string_t : public std::string_view {
 	static inline std::string_view _lookup(const std::string_view& sv) {
 		static std::unordered_map<std::string_view, std::pair<std::unique_ptr<char>, size_t>> string_table;
@@ -140,10 +140,47 @@ public:
 	string_t(const std::string& str) : string_t(std::string_view(str.c_str(), str.size())) {}
 	template<size_t N>
 	string_t(const char (&str)[N]) : string_t(str,N-1) {}
+	explicit operator uint32_t() const { return 0; }
 };
+#endif
+using string_id_t = uint32_t;
 
+class string_t {
+	string_id_t _index;
+	struct string_table {
+		std::vector<char> _cache;
+		std::unordered_map<std::string_view, string_id_t> _lookup;
+		string_table() 
+		{ _cache.reserve(1024 * 1024); 
+		_cache.push_back(0); 
+		_lookup.emplace(std::string_view(&_cache[0], 0), 0);
+		}
+		string_id_t create(const std::string_view& s) {
+			if (auto it = _lookup.find(s); it != _lookup.end())
+				return it->second;
+			string_id_t index = static_cast<string_id_t>(_cache.size());
+			_cache.insert(_cache.end(), s.begin(), s.end());
+			_cache.push_back(0); // zero termination
+			_lookup.emplace(std::string_view(&_cache[index], s.size()), index);
+			return index;
+		}
+		const char* lookup(string_id_t i) const { return &_cache[i]; }
+	};
+	static inline string_table& string_list() { static string_table _strings; return _strings; }
+
+public:
+	string_t() :_index(0) {}
+	string_t(const std::string_view& sv) : _index(string_list().create(sv)) {}
+	string_t(const char* str, size_t s) : string_t(std::string_view(str, s)) {}
+	string_t(const std::string& str) : string_t(std::string_view(str.c_str(), str.size())) {}
+	template<size_t N>
+	string_t(const char(&str)[N]) : string_t(str, N - 1) {}
+	explicit operator string_id_t() const { return _index; }
+	operator std::string_view() const { return string_list().lookup(_index); }
+	const char* c_str() const { return string_list().lookup(_index); }
+};
 static inline bool operator==(const string_t& l, const string_t& r) {
-	return l.data() == r.data();
+	return static_cast<string_id_t>(l) == static_cast<string_id_t>(r);
 }
 static inline std::ostream& operator<<(std::ostream& os, const string_t& s) {
 	os << static_cast<const std::string_view>(s);
@@ -160,5 +197,56 @@ namespace std {
 
 template<class... Ts> struct overload : Ts... { using Ts::operator()...; };
 template<class... Ts> overload(Ts...)->overload<Ts...>;
+
+
+
+class FileId {
+public:
+	using type = uint16_t;
+
+
+	constexpr static type FILEID_BUILTINS = 0;
+	constexpr static type FILEID_MIN = FILEID_BUILTINS + 1;
+	constexpr static type FILEID_BAD = std::numeric_limits<decltype(type{}) > ::max();
+	constexpr static type FILEID_MAX = FILEID_BAD - 1;
+	constexpr FileId() : _value(FILEID_BAD) {}
+	constexpr FileId(const type& v) : _value(v) {}
+	constexpr operator type& () { return _value; }
+	constexpr operator const type& () const { return _value; }
+private:
+	type _value;
+};
+class Location {
+	FileId _fileIndex;
+	uint32_t _line;
+	uint16_t _column;
+public:
+	constexpr Location() : _fileIndex(FileId()), _line(1), _column(1) {}
+	constexpr Location(uint32_t line, uint16_t column) : _fileIndex(FileId()), _line(line), _column(column) {}
+	constexpr auto line() const { return _line; }
+	constexpr auto column() const { return _column; }
+	constexpr auto fileIndex() const { return _fileIndex; }
+	constexpr uint64_t pack() const { return (static_cast<uint64_t>(_fileIndex) << 48) | (static_cast<uint64_t>(_line) << 16) | static_cast<uint64_t>((_column)); }
+	inline Location& pred() {
+		if (_column) --_column;
+		else if (_line) {
+			_line--;
+			_column = std::numeric_limits<decltype(_column)>::max();
+		}
+		else if (_fileIndex) {
+			_fileIndex--;
+			_line = std::numeric_limits<decltype(_line)>::max();
+			_column = std::numeric_limits<decltype(_column)>::max();
+		}
+		return *this;
+	}
+	inline Location& add_columns(uint16_t count) { _column += count; return *this; }
+	inline bool is_builtins() const { return _fileIndex == std::numeric_limits<decltype(_fileIndex)>::max(); }
+};
+
+static inline std::ostream& operator<<(std::ostream& os, const Location& l) {
+	os << l.line() << ':' << l.column();
+	return os;
+}
 
 #endif

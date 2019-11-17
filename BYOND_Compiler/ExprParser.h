@@ -56,6 +56,11 @@ namespace byond_compiler {
 
 	namespace preprocessor {
 
+		struct line_comment_start : two<'/'> {};
+		struct block_comment_start : string<'/', '*'> {};
+		struct block_comment_end : string<'*', '/'> {};
+		struct line_comment : seq< line_comment_start, until< eolf >> {};
+		struct block_comment : seq< block_comment_start, until< block_comment_end >> {};
 
 		// Since the the byond has NO ENUMS  OR ANYTHING A PROPER LANGUAGE SHOULD HAVE FOR ITS CONSTANTS ahem
 		// (rant over)
@@ -88,11 +93,9 @@ namespace byond_compiler {
 		struct name_list : list< name, one< ',' >, blank > {};
 		struct name_list_must : list_must< name, one< ',' >, blank > {};
 
-
-#if 0
-		struct parameter_list_one : seq < name_list, opt_must< pad< one< ',' >, ellipsis > > {};
+		struct parameter_list_one : seq < name_list, opt_must< pad< one< ',' >, ellipsis > >> {};
 		struct parameter_list : sor< ellipsis, parameter_list_one > {};
-#endif
+
 		template< typename R, typename P = blank >
 		struct pad_blank:  seq< R, star< P > >{};
 		struct begin_cpp : pad_blank<one<'#'>> {};
@@ -102,42 +105,42 @@ namespace byond_compiler {
 		struct macro_tokens : sor<literal_string, name, hash, double_hash, not_one<'\\'>, seps> {};
 
 
-		struct macro_line : list<not_at<eol>, seq<one<'\\'>, eol>> {};
+		struct macro_line : list<not_at<eolf>, seq<one<'\\'>, star_blank, eolf>> {};
 
-
+	
 		struct normal_line : seq< bol, until<eolf> > {};
-		struct define_arg_comma : pad_blank<one<','>> {};
-		struct define_list_end : pad_blank<one<')'>> {};
+		
 		struct define_name : name {};
-		struct define_arg : name {};
-		struct define_list : seq <one<'('>, star_blank, opt < list_must<define_arg, define_arg_comma>> , define_list_end>{};
+		struct define_arg : seq< not_at< KEYWORDS >, identifier > {};
+		struct define_arg_list : list< define_arg, one< ',' >, blank > {};
+		struct define_arg_list_must : list_must< define_arg, one< ',' >, blank > {};
+
+		struct define_arg_parameter_list_one : seq < define_arg_list, opt_must< pad< one< ',' >, ellipsis > >> {};
+		struct define_arg_parameter_list : sor< ellipsis, define_arg_parameter_list_one > {};
+
+		struct define_blank_assign : eolf {};
+		struct define_macro_assign : if_must<not_one<'('>, macro_line> {};
+		struct define_macro_arguments : seq< one< '(' >, pad_opt< define_arg_parameter_list, sep >, one< ')' > > {};
+
 
 		struct preprocessor_commands : seq<
-			define_name, sor<star_blank,define_list, macro_line >, // define preprocesso
+			define_name,opt<define_macro_arguments, macro_line >,sor<blank, macro_line>, // define preprocesso
 			until<eol>
 		> {};
 		//struct preprocessor_start : if_must<seq<hash, star<blank>>, preprocessor_commands> {};
 
 		struct something : seq<bol, sor<  if_must<begin_cpp, preprocessor_commands>, normal_line >> {};
-		struct grammar : until< eof, must< something > > {};
+		
 
-		// symbol table for the preprocessor
-		using opt_string = std::optional<std::string>;
-
-
-		struct macro_t {
-			string_t name;
-			opt_string value;
-			std::vector<string_t> args;
-			macro_t() : name(), value(std::nullopt), args() {}
-			macro_t(string_t name, opt_string value) : name(name), value(value) {}
-			macro_t(string_t name) : name(name), value(std::nullopt) {}
-		};
 
 		struct state
 		{
-			macro_t temp_macro;
-			std::unordered_map< string_t, macro_t> symbol_table;
+			string_t temp_macro;
+			std::unordered_map<  string_t, string_t> symbol_table;
+			std::size_t current_indent = 0;  // Temporary value, the indentation of the current line.
+			std::size_t minimum_indent = 0;  // Set to non-zero when the next line needs a greater indent.
+
+			std::vector< entry > stack;  // Follows the nesting of the indented blocks.
 		};
 
 		template< typename Rule > struct action {};
@@ -183,24 +186,24 @@ namespace byond_compiler {
 
 		static inline int test_it(int argc, const char** argv)
 		{
-			const std::size_t issues_found = tao::pegtl::analyze<  preprocessor::grammar >();
+			const std::size_t issues_found = tao::pegtl::analyze<  preprocessor::something >();
 			for (int i = 1; i < argc; ++i) {
 				file_input in(argv[i]);
 				preprocessor::state st;
-				parse< preprocessor::grammar, preprocessor::action >(in, st);
+				parse< preprocessor::something, preprocessor::action >(in, st);
 				for (const auto& j : st.symbol_table) {
 					std::cout << j.first;
 					if (j.second.args.size() > 0) {
 						std::cout << '(';
 						bool comma = true;
-						for (const auto& a : j.second.args) {
+						for (const auto& a : j.second) {
 							if (comma) { comma = false; }
 							else std::cout << ',';
 							std::cout << a;
 						}
 						std::cout << ')';
 					}
-					std::string val = j.second.value.value_or(std::string(""));
+					std::string val = j.second;
 					std::cout << '=' << val << std::endl;
 				}
 			}

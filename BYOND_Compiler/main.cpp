@@ -231,7 +231,8 @@ void displayFilterTypes(const std::vector<unsigned char>& buffer, bool ignore_ch
 	std::cout << std::endl;
 
 }
-Lexer lexer;
+
+//Lexer lexer;
 int main(int argc, const char** argv)
 {
 	bool ignore_checksums = false;
@@ -284,11 +285,16 @@ int main(int argc, const char** argv)
 	}
 
 	for (auto p : text_data) {
-		std::cout << "[" << p.first << "]= " << p.second << std::endl;
+		if (p.first == "Description") {
+
+
+
+
+		}
 	}
 	//eturn byond_compiler::preprocessor::test_it(argc, argv);
 
-
+#if 0
 	 // Request a 24-bits depth buffer when creating the window
 	sf::ContextSettings contextSettings;
 	contextSettings.depthBits = 24;
@@ -417,6 +423,6 @@ int main(int argc, const char** argv)
 		// Finally, display the rendered frame on screen
 		window.display();
 	}
-
+#endif
 	return EXIT_SUCCESS;
 }

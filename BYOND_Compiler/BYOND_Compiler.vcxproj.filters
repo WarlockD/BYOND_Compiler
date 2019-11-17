@@ -56,11 +56,15 @@
     <ClInclude Include="entt.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="LinkedHashMap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="preprocessor.y" />
+    <CustomBuild Include="lexer.l" />
   </ItemGroup>
 </Project>
