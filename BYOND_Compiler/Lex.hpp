@@ -44,9 +44,9 @@ static inline std::ostream& operator>>(std::ostream& os, const DocComment& c) {
 
 
 template<typename T>
-constexpr static inline bool HasLocation(T&) { return std::is_member_function_pointer<decltype(&A::location)>::value; }
+constexpr static inline bool HasLocation(T&) { return std::is_member_function_pointer<decltype(&T::location)>::value; }
 template<typename T>
-constexpr static inline bool HasLocation(const T&) { return std::is_member_function_pointer<decltype(&A::location)>::value; }
+constexpr static inline bool HasLocation(const T&) { return std::is_member_function_pointer<decltype(&T::location)>::value; }
 
 enum class Severity {
 	Error = 1,
@@ -113,6 +113,7 @@ public:
 
 
 enum class Punc {
+	Eof = -1,
 	Null, // empty
 	Unkonwn,
 	Tab,
@@ -182,7 +183,8 @@ enum class Punc {
 	In,
 	// Tokens
 	Sharp,
-	Number,
+	Int,
+	Float,
 	Char,
 	String,
 	Name,
@@ -190,25 +192,415 @@ enum class Punc {
 	CommentBlock
 };
 
+// (paren) {brace} [bracket]
+struct punc_str_t {
+	std::string_view str;
+	Punc punc;
+};
+static constexpr punc_str_t punc_str[] = {
+	/// A punctuation token recognized by the language.
+	///
+	/// Not all punctuation types will actually appear in the lexer's output;
+	/// some (such as comments) are handled internally.
+		// Order is significant; see filter_punct below.
+	{ "\t", Punc::Tab },
+	{ "\n", Punc::Newline },
+	{ " ", Punc::Space },
+	{ "!", Punc::Not },
+	{ "!=", Punc::NotEq },
+	{ "\"", Punc::DoubleQuote },
+	{ "#", Punc::Hash },
+	{ "##", Punc::TokenPaste },
+	{ "%", Punc::Mod },
+	{ "%=", Punc::ModAssign },
+	{ "&", Punc::BitAnd },
+	{ "&&", Punc::And },
+	{ "&=", Punc::BitAndAssign },
+	{ "'", Punc::SingleQuote },
+	{ "(", Punc::LParen },
+	{ ")", Punc::RParen },
+	{ "*", Punc::Mul },
+	{ "**", Punc::Pow },
+	{ "*=", Punc::MulAssign },
+	{ "+", Punc::Add },
+	{ "++", Punc::PlusPlus },
+	{ "+=", Punc::AddAssign },
+	{ ",", Punc::Comma },
+	{ "-", Punc::Sub },
+	{ "--", Punc::MinusMinus },
+	{ "-=", Punc::SubAssign },
+	{ ".", Punc::Dot },
+	{ "..", Punc::Super },
+	{ "...", Punc::Ellipsis },
+	{ "/", Punc::Slash },
+	{ "/*", Punc::BlockComment },
+	{ "//", Punc::LineComment },
+	{ "/=", Punc::DivAssign },
+	{ ":", Punc::Colon },
+	{ ";", Punc::Semicolon },
+	{ "<", Punc::Less },
+	{ "<<", Punc::LShift },
+	{ "<<=", Punc::LShiftAssign },
+	{ "<=", Punc::LessEq },
+	{ "<>", Punc::LessGreater },
+	{ "=", Punc::Assign },
+	{ "==", Punc::Eq },
+	{ ">", Punc::Greater },
+	{ ">=", Punc::GreaterEq },
+	{ ">>", Punc::RShift },
+	{ ">>=", Punc::RShiftAssign },
+	{ "?", Punc::QuestionMark },
+	{ "?.", Punc::SafeDot },
+	{ "?:", Punc::SafeColon },
+	{ "[", Punc::LBracket },
+	{ "]", Punc::RBracket },
+	{ "^", Punc::BitXor },
+	{ "^=", Punc::BitXorAssign },
+	{ "{", Punc::LBrace },
+	{ "{\"", Punc::BlockString },
+	{ "|", Punc::BitOr },
+	{ "|=", Punc::BitOrAssign },
+	{ "||", Punc::Or },
+	{ "}", Punc::RBrace },
+	{ "~", Punc::BitNot },
+	{ "~!", Punc::NotEquiv },
+	{ "~=", Punc::Equiv },
+	// Keywords - not checked by read_punct
+};
 
-struct Ident { string_t name; bool ws_following; };
+
+struct Ident { string_t name;};
 struct InterpStringBegin { string_t string; };
 struct InterpStringPart { string_t string; };
 struct InterpStringEnd { string_t string; };
 struct Resource { string_t filename; };
+struct String { std::string str;  };
+struct Char { int ch; };
 
-
-using TokenValue = std::variant<Punc, Ident, Ident, InterpStringBegin, InterpStringPart, InterpStringEnd, Resource, DocComment,float,int32_t>;
+using TokenValue = std::variant<Punc, Ident, InterpStringBegin, InterpStringPart, InterpStringEnd, String, Char, Resource, DocComment,float,int32_t>;
 
 struct Token {
 	TokenValue _token;
 	Location _location;
 public:
+	Token() : _token(Punc::Null) {} // end of all files
 	Token(const TokenValue& v, const Location& loc= Location()) : _token(v), _location(loc) {}
+	Token(const char* text, Punc type, const Location& loc = Location()) {
+		switch (type) {
+		case Punc::Float:
+			_token = std::strtof(text, nullptr); // do this better..er..latter
+			break;
+		case Punc::Int:
+			_token = static_cast<int32_t>(std::strtol(text, nullptr,0)); // do this better..er..latter
+			break;
+		case Punc::Name:
+			_token = Ident{ text };
+			break;
+		case Punc::String:
+			_token = String{ text };
+			break;
+		case Punc::Char:
+			_token = Char{ text[1] }; // need to convert this meh
+			break;
+		default:
+			// why?
+			_token = type;
+			break;
+		}
+	}
 	const TokenValue& token() const { return _token; }
 	const Location& location() const { return _location; }
 };
+struct LocationTracker {
+	struct entry {
+		std::unique_ptr<std::istream> stream;
+		Location location;
+		bool at_line_end;
+		bool at_line_start;
+		entry() : stream(), location(1, 0), at_line_end(true), at_line_start(true) {}
+		entry(std::istream* s) : stream(s), location(1, 0), at_line_end(true), at_line_start(true) {}
+		int next() {
+			if (at_line_end) {
+				location.add_line(1);
+				at_line_end = false;
+				at_line_start = true;
+			}
+			else if (at_line_start)
+				at_line_start = false;
+			int ch = stream->get();
+			if (ch != -1) {
+				if (ch == '\n' || ch == '\r') { // handle wierd line endings
+					int peek = stream->peek();
+					if (peek != ch && (peek == '\r' || peek == '\n'))
+						stream->get();
+					at_line_end = true;
+					at_line_start = false;
+					ch = '\n';
+				}
+				location.add_columns(1);
+			}
+			return ch;
+		}
+	};
+	std::stack<entry> _includes;
+	std::stack <std::pair<int, Location>> _putback;
 
+
+};
+#if 0
+// fuck it, doing it live and boring
+class Lexer {
+	struct Interpolation {
+		char* end;
+		size_t bracket_depth;
+	};
+	enum class Directive {
+		None,
+		Hash,
+		Ordinary,
+		Stringy,
+	};
+
+	class cclass_t {
+		using word_type = uint64_t;
+		static constexpr ptrdiff_t _Bits = 256; // only 256 charaters,
+		static constexpr ptrdiff_t _Bitsperword = CHAR_BIT * sizeof(word_type);
+		static constexpr ptrdiff_t _Words = _Bits == 0 ? 0 : (_Bits - 1) / _Bitsperword; // NB: number of words - 1
+		using array_type = std::array<word_type, _Words>;
+
+
+		static constexpr array_type& _set_unchecked(array_type& array, size_t pos) noexcept { // set bit at _Pos to _Val, no checking
+			array[pos / _Bitsperword] |= word_type{ 1 } << (pos % _Bitsperword);
+			return array;
+		}
+		static  constexpr array_type& _reset_unchecked(array_type& array, size_t pos) noexcept { // set bit at _Pos to _Val, no checking
+			array[pos / _Bitsperword] &= ~(word_type{ 1 } << (pos % _Bitsperword));
+			return array;
+		}
+		static  constexpr bool _test(const array_type& array, size_t pos) noexcept { // set bit at _Pos to _Val, no checking
+			return 	(array[pos / _Bitsperword] & (word_type{ 1 } << (pos % _Bitsperword))) == 0 ? false : true;
+		}
+		array_type _words;
+		enum class State { Normal, InRange, Slash };
+	public:
+
+		cclass_t() : _words() {} // empty char class
+
+		template<typename BEGIN, typename END>
+		void assign(BEGIN ibegin, END iend) {
+			bool invert = false;
+			if (*ibegin == '^') { invert = true; ibegin++; }
+			State state = State::Normal;
+			int prev;
+			bool in_range = false;
+			for (auto it = ibegin; it != iend; it++) {
+				if (state == State::Slash) {
+					_set_unchecked(_words, *it);
+					state = State::Normal;
+				}
+				else {
+					switch (*it) {
+					case '\\':
+						state = State::Slash;
+						continue; // we ignore slash unless its a double
+					case '-':
+						state = State::InRange;
+						continue; // we save the prev for the range
+					default:
+						if (state == State::InRange) {
+							int ch = *it;
+							if (prev > ch) std::swap(prev, ch);
+							while (prev <= ch) {
+								_set_unchecked(_words, prev++);
+							}
+							state = State::Normal;
+						}
+						else
+							_set_unchecked(_words, *it);
+					}
+				}
+				prev = *it;
+
+			}
+		}
+		cclass_t(std::string_view str) {
+			assign(str.begin(), str.end());
+		}
+
+		bool operator[](size_t v) const { return _test(_words, v); }
+		bool operator==(const cclass_t& r) const { return _words == r._words; }
+	};
+
+		//	constexpr cclass_t(char c0, char c1,  char c2) : cclass_t(c0,c1) { _set_unchecked(_words, static_cast<size_t>(c2)); }
+	class NFA {
+		std::vector<cclass_t> _cclasses;
+		struct entry {
+			size_t cclass;
+			int action;
+
+		};
+
+	};
+	LocationTracker input;
+	std::stack<int> putback;
+	bool final_newline;
+	bool at_line_head;
+	bool close_allowed;
+	Directive directive;
+	std::vector<Interpolation> interp_stack;
+
+	Location location() const { return input.location; }
+	int next() {
+		int ret;
+		if (!putback.empty()) {
+			ret = putback.top();
+			putback.pop();
+			return ret;
+		}
+		return input.next();
+	}
+
+	Token skip_block_comments() {
+		// we already read the first line
+		size_t depth = 1;
+		std::string comment;
+
+		int ch = next();
+		int prev = -1;
+		if (ch == '*' || ch == '!') {
+			bool EnclosingItem = ch == '*' ? false : true;
+
+			do {
+				ch = next();
+				switch (ch) {
+				case -1:
+					throw std::exception("Still skipping comments at end of file");
+				case '*':
+					if (prev == '/')
+						depth += 1;
+					break;
+				case '/':
+					if (prev == '*' && --depth == 0) {
+						// oure end is here
+						return Token(DocComment(EnclosingItem, true, comment), location());
+					}
+				};
+				comment.push_back(prev = ch);
+			} while (1);
+		}
+		else if (ch == '/') { // not sure about the '!'
+			bool EnclosingItem = ch == '/' ? false : true;
+			bool backslash = false;
+			do {
+				ch = next();
+				switch (ch) {
+				case '\\':
+					backslash = true;
+					continue; // don't record the backslash
+				case -1:
+				case '\n':
+					if (!backslash || ch == -1) 	// we done
+						return Token(DocComment(EnclosingItem, false, comment), location());
+				default:
+					comment.push_back(ch);
+					break;
+				}
+			} while (1);
+		}
+		else
+			throw std::exception("How did I get here?");
+	}
+
+	static constexpr bool _isdigit(int c) { return (c >= '0' && c <= '9'); }
+	static constexpr bool _ixsdigit(int c) { return _isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+
+	Token read_number() {
+		static constexpr int MAXSIGDIG = 30;
+		float r = 0.0;  /* result (accumulator) */
+		int sigdig = 0;  /* number of significant digits */
+		int nosigdig = 0;  /* number of non-significant digits */
+		int e = 0;  /* exponent correction */
+		bool neg = false;  /* 1 if number is negative */
+		bool hasdot = false;  /* true after seen a dot */
+		int base = 10;
+		int ch = next();
+		if (ch == '-') { neg = true; ch = next(); }
+		if (ch == '0') { base = 8; ch = next(); }
+		if (ch == 'x' && base == 0) { base = 16; ch = next(); }
+		while (ch != -1) {
+			if (ch == '.') {
+				if (hasdot) break;  /* second dot? stop loop */
+				else hasdot = true;
+				ch = next();
+				if (ch == '#') {
+					ch = next();
+					if (ch == 'I') {
+						ch = next();
+						if (ch == 'N') {
+							ch = next();
+							if (ch == 'D') 	return Token(std::numeric_limits<float>::quiet_NaN(), location());
+							if (ch == 'F') 	return Token(std::numeric_limits<float>::infinity(), location());
+						}
+						throw std::exception("Bad float type");
+					}
+				}
+				break; // error with the indf
+			}
+			else if (base == 16  ? _ixsdigit(ch) : _isdigit(ch)) {
+				if (sigdig == 0 && ch == '0')  /* non-significant digit (zero)? */
+					nosigdig++;
+				else if (++sigdig <= MAXSIGDIG)  /* can read it without overflow? */
+					r = (r * static_cast<float>(base)) + (ch - '0');
+				else e++; /* too many digits; ignore, but still count for exponent */
+				if (hasdot) e--;  /* decimal digit? correct exponent */
+				ch = next();
+			}
+			else break;  /* neither a dot nor a digit */
+
+		}
+		if (!hasdot) {
+			putback.push(ch); // put it back
+			if (neg) r = -r;
+			if (r > 0x00FFFFFF) // not sure if this is right, but numbers over 24 bits are turned to floats?
+				return Token(r, location());
+			else
+				return Token(static_cast<int>(r), location());
+		}
+		if (nosigdig + sigdig == 0)  /* no digits? */
+			throw std::exception("Invalided float format");  /* invalid format */
+		e *= 4;  /* each digit multiplies/divides value by 2^4 */
+		if (ch == 'e' || ch == 'E') {  /* exponent part? */
+			int exp1 = 0;  /* exponent value */
+			int neg1;  /* exponent sign */
+			ch = next(); /* skip 'p' */
+			if (ch == '-') { neg1 = true; ch = next(); }
+			else if (ch == '+') ch = next();
+			if (!_isdigit(ch))
+				throw std::exception("Bad exponent"); /* invalid; must have at least one digit */
+			while (_isdigit(ch)) {  /* read exponent */
+				exp1 = exp1 * 10 + (ch - '0');
+				ch = next();
+			}
+			if (neg1) exp1 = -exp1;
+			e += exp1;
+		}
+		if (neg) r = -r;
+		return Token(std::ldexpf(r, e), location());
+	}
+	static constexpr bool _is_ident(int c) { return (c >= 'A' && c >= 'Z') || (c >= 'a' && c >= 'z') || '_'; }
+	Token read_ident(bool spaces) {
+		string_t::builder_t builder;
+		int ch = next();
+		if (!_is_ident(ch)) throw std::exception("ARG why?");
+		while (_is_ident(ch) || _isdigit(ch)) builder.push_back(ch);
+		putback.push(ch);
+		return Token(Ident{ builder.intern(),spaces }, location());
+	}
+
+};
+
+#endif
+#if 0
 
 class Lexer {
 
@@ -515,3 +907,4 @@ class Lexer {
 #endif
 
 };
+#endif

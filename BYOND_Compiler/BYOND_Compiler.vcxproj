@@ -19,10 +19,23 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\RE-flex-master\lib\convert.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\debug.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\error.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\input.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\matcher.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\pattern.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\posix.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\unicode.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\utf8.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\block_scripts.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\language_scripts.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\letter_scripts.cpp" />
     <ClCompile Include="ccp_processor.cpp" />
     <ClCompile Include="Lex.cpp" />
     <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="RLex.cpp" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -36,6 +49,7 @@
     <ClInclude Include="lodepng.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="queue.h" />
+    <ClInclude Include="RLex.h" />
     <ClInclude Include="util.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -44,17 +58,17 @@
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe -b prec preprocessor.y</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\warlo\source\repos\BYOND_Compiler\Debug\btyacc.exe preprocessor.y</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">y.tab.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">y.tab.c</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">y.tab.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">prec_tab.c</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">y.tab.c</Outputs>
     </CustomBuild>
     <CustomBuild Include="lexer.l">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">c:\bin\reflex lexer.l</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">lex.yy.cpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">c:\bin\reflex −−outfile=RLex.cpp −−header-file=RLex.h lexer.l</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">RLex.cpp;RLex.h</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

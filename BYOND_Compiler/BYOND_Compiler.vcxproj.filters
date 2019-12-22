@@ -24,6 +24,19 @@
       <Filter>Header Files</Filter>
     </ClCompile>
     <ClCompile Include="lodepng.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\convert.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\debug.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\error.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\input.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\matcher.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\pattern.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\posix.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\unicode.cpp" />
+    <ClCompile Include="..\RE-flex-master\lib\utf8.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\block_scripts.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\language_scripts.cpp" />
+    <ClCompile Include="..\RE-flex-master\unicode\letter_scripts.cpp" />
+    <ClCompile Include="RLex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ccp_processor.h">
@@ -57,6 +70,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="LinkedHashMap.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RLex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

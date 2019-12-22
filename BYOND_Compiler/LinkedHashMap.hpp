@@ -3,7 +3,6 @@
 
 #include "queue.h"
 
-#include <type_traits>
 #include <forward_list>
 #include <vector>
 
@@ -22,28 +21,29 @@ public:
 	using const_pointer = const VALUE*;
 	using const_reference = const VALUE&;
 private:
-	struct entry {
+	static constexpr size_t lmod(size_t s, size_t, size) { return  s & (size - 1); }
+	struct node {
 		std::pair<KEY, VALUE> value;
-		// The top is designed for a que while next_hash is designed for the linked
-		// list on the has lookup
-		struct { entry* next;  entry** prev; } next_list;
-		struct { entry* next;  entry* prev; } next_hash;
-		template<typename ARGS...>
-		entry(const KEY& key, ARGS ... args) : 
-			value(key, std::forward<ARGS>(args)...), 
-			next_list{ nullptr, &next_list.next }, 
-			next_hash{ nullptr, nullptr }{}
+		LIST_ENTRY(entry) hash;
+		TAILQ_ENTRY(entry) list;
 	};
-	TAILQ_HEAD(entry_list, list);
-	LIST_HEAD(entry_head, entry); 
+	TAILQ_HEAD(list_t, node) _list;
+	LIST_HEAD(hash_t, node);
 	HASHER _hasher;
-	std::vector<entry_list> _buckets;
-	entry_list _list;
-
+	std::vector<hash_t> _buckets;
+	entry_list ;
+	void _insert_node(hash_t& bucket, node* n) {
+		LIST_INSERT_HEAD(&bucket, n, hash);
+		TAILQ_INSERT_TAIL(&_list, n, list);
+	}
+	void _remove_node(node* n) {
+		LIST_REMOVE(n, hash);
+		TAILQ_REMOVE(&_list, n, list);
+	}
 	std::pair<size_t,entry*> _findentry(const KEY& key) {
 		size_t h = _hasher(key) % _buckets.size();
 		entry* e=nullptr;
-		LIST_FOREACH(e, &_buckets[h], next) {
+		LIST_FOREACH(e, &_buckets[h], hash) {
 			if (e->value.first == key)
 				return std::make_pair(h, e);
 		}
@@ -55,9 +55,7 @@ private:
 			fnode.second->value.second = std::move(v);
 			return node;
 		}
-		auto nnode = new entry{ std::make_pair(key, std::move(v)) };
-		LIST_INSERT_HEAD(&_buckets[h], nnode, next);
-		TAILQ_INSERT_TAIL(&_list, nnode, list);
+		_insert_node(_buckets[h], new entry{ std::make_pair(key, std::move(v)) });
 	}
 	entry* _find_or_add(const KEY& key, const VALUE& v) {
 		auto fnode = _findentry(key);
@@ -65,16 +63,14 @@ private:
 			fnode.second->value.second = v;
 			return node;
 		}
-		auto nnode = new entry{ std::make_pair(key, v };
-		LIST_INSERT_HEAD(&_buckets[h], nnode, next);
-		TAILQ_INSERT_TAIL(&_list, nnode, list);
+		_insert_node(_buckets[h], new entry{ std::make_pair(key, v) });
 	}
 public:
 
 
 	class const_iterator {
 	protected:
-		entry* _entry;
+		const entry* _node;
 	public:
 		using iterator_category = std::bidirectional_iterator_tag;
 		using difference_type = ptrdiff_t;
@@ -83,33 +79,35 @@ public:
 		using reference = const VALUE&;
 		using const_pointer = const VALUE*;
 		using const_reference = const VALUE&;
-		
-		const_iterator(entry* e) : _entry(e) {}
-		const_iterator operator++()  {
-			_entry = TAILQ_NEXT(_entry, list);
+		const_iterator() : _node(nullptr) {}
+		const_iterator(const entry* e) : _node(e) {}
+		const_iterator& operator++()  {
+			_node = TAILQ_NEXT(_node, list);
 			return *this;
 		}
-		const_iterator operator++() {
-			const_iterator ret(*this);
-			_entry = TAILQ_NEXT(_entry, list);
+		const_iterator operator++(int) {
+			const_iterator ret = *this;
+			_node = TAILQ_NEXT(_node, list);
 			return ret;
 		}
-		const_iterator operator--() {
-			_entry = TAILQ_PREV(_entry, entry_head, list);
+		& operator--() {
+			_node = TAILQ_PREV(_node, list_t, list);
 			return *this;
 		}
-		const_iterator operator--() {
+		const_iterator operator--(int) {
 			const_iterator ret(*this);
-			_entry = TAILQ_PREV(_entry, entry_head, list);
+			_node = TAILQ_PREV(_node, list_t, list);
 			return ret;
 		}
-		reference operator*() const { return _entry->value; }
-		pointer operator->() const { return &_entry->value; }
-		void swap(const_iterator& r) { std::swap(r._entry, _entry); }
-		bool operator==(const const_iterator& r) const { return _entry == r._entry; }
-		bool operator!=(const const_iterator& r) const { return _entry != r._entry; }
+		reference operator*() const { return _node->value; }
+		pointer operator->() const { return  std::addressof(_node->value); }
+		bool operator==(const const_iterator& r) const { return _node == r._node; }
+		bool operator!=(const const_iterator& r) const { return _node != r._node; }
+		friend class const_iterator;
 	};
-	class iterator : public const_iterator {
+	class const_iterator {
+	protected:
+		entry* _node;
 	public:
 		using iterator_category = std::bidirectional_iterator_tag;
 		using difference_type = ptrdiff_t;
@@ -118,12 +116,33 @@ public:
 		using reference = VALUE&;
 		using const_pointer = const VALUE*;
 		using const_reference = const VALUE&;
-
-		iterator(entry* e) : const_iterator(e) {}
-		reference operator*()  { return _entry->value; }
-		pointer operator->()  { return &_entry->value; }
-		bool operator==(const iterator& r) const { return _entry == r._entry; }
-		bool operator!=(const iterator& r) const { return _entry != r._entry; }
+		iterator() : _node(nullptr) {}
+		iterator(entry* e) : _node(e) {}
+		iterator& operator++() {
+			_node = TAILQ_NEXT(_node, list);
+			return *this;
+		}
+		iterator operator++(int) {
+			const_iterator ret = *this;
+			_node = TAILQ_NEXT(_node, list);
+			return ret;
+		}
+		iterator& operator--() {
+			_node = TAILQ_PREV(_node, list_t, list);
+			return *this;
+		}
+		iterator operator--(int) {
+			const_iterator ret(*this);
+			_node = TAILQ_PREV(_node, list_t, list);
+			return ret;
+		}
+		reference operator*()  { return _node->value; }
+		pointer operator->()  { return  std::addressof(_node->value); }
+		const_reference operator*() const { return _node->value; }
+		const_pointer operator->() const { return  std::addressof(_node->value); }
+		bool operator==(const iterator& r) const { return _node == r._node; }
+		bool operator!=(const iterator& r) const { return _node != r._node; }
+		friend class iterator;
 	};
 
 	bool empty() const { return TAILQ_EMPTY(list); }
@@ -134,6 +153,10 @@ public:
 	iterator find(const KEY& key) { return iterator(_findentry(key).second); }
 	const_iterator find(const KEY& key) const { return const_iterator(_findentry(key).second); }
 	// size() is stuipd as we have to ileterate though it, so we don't use it
-	void push_back()
+
 
 };
+
+template<typename KEY, typename VALUE, typename HASHER>
+inline bool operator==(const LinkedHashMap<KEY, VALUE, HASHER>::iterator& l, const LinkedHashMap<KEY, VALUE, HASHER>::const_iterator& r)  { return l._node == r._node; }
+inline bool operator!=(const LinkedHashMap<KEY, VALUE, HASHER>::iterator& l, const LinkedHashMap<KEY, VALUE, HASHER>::const_iterator& r)  { return l._node != r._node; }

@@ -28,6 +28,7 @@
 #include <cassert>
 #include <string>
 #include <forward_list>
+#include <sstream>
 
 #include <iostream>
 #include <unordered_map>
@@ -38,6 +39,10 @@
 #include <tao/pegtl/analyze.hpp>
 #include <tao/pegtl/contrib/unescape.hpp>
 #include <tao/pegtl/contrib/raw_string.hpp>
+#include <tao/pegtl/string_input.hpp>
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; }; // (1)
+template<class... Ts> overloaded(Ts...)->overloaded<Ts...>;  // (2)
+
 #if 0
 
 // this class encu
@@ -143,11 +148,22 @@ public:
 	explicit operator uint32_t() const { return 0; }
 };
 #endif
-using string_id_t = uint32_t;
+
+// got to love sfian
+#if 0
+template<typename C, typename... Args>
+constexpr decltype(std::declval().location(std::declval <Args>()...), true) has_location(int) { return true; }
+template<typename C, typename...Args>
+constexpr bool has_update(...) { return false; }
+#endif
+// static_assert( has_location<some_object>(0) == true, "we are good")
+
+using string_id_t = uintptr_t;
 
 class string_t {
 	string_id_t _index;
 	struct string_table {
+		std::mutex _mutex;
 		std::vector<char> _cache;
 		std::unordered_map<std::string_view, string_id_t> _lookup;
 		string_table() 
@@ -156,6 +172,7 @@ class string_t {
 		_lookup.emplace(std::string_view(&_cache[0], 0), 0);
 		}
 		string_id_t create(const std::string_view& s) {
+			std::lock_guard<std::mutex> lock(_mutex);
 			if (auto it = _lookup.find(s); it != _lookup.end())
 				return it->second;
 			string_id_t index = static_cast<string_id_t>(_cache.size());
@@ -167,17 +184,42 @@ class string_t {
 		const char* lookup(string_id_t i) const { return &_cache[i]; }
 	};
 	static inline string_table& string_list() { static string_table _strings; return _strings; }
-
+	string_t(string_id_t index) :_index(index) {}
 public:
 	string_t() :_index(0) {}
 	string_t(const std::string_view& sv) : _index(string_list().create(sv)) {}
 	string_t(const char* str, size_t s) : string_t(std::string_view(str, s)) {}
+	string_t(const char* str) : string_t(std::string_view(str)) {}
 	string_t(const std::string& str) : string_t(std::string_view(str.c_str(), str.size())) {}
 	template<size_t N>
 	string_t(const char(&str)[N]) : string_t(str, N - 1) {}
 	explicit operator string_id_t() const { return _index; }
 	operator std::string_view() const { return string_list().lookup(_index); }
 	const char* c_str() const { return string_list().lookup(_index); }
+	// very crappy if we are doing multi threads
+	class builder_t {
+		std::lock_guard<std::mutex> lock;
+		string_id_t _start;
+	public:
+		builder_t() : lock(string_list()._mutex), _start(string_list()._cache.size()) {}
+		~builder_t() { clear(); }
+		void push_back(int c) { string_list()._cache.push_back(c); }
+		void clear() { string_list()._cache.resize(_start); }
+		string_t intern() {
+			auto& st = string_list();
+			size_t len = st._cache.size() - _start;
+			if (auto it = st._lookup.find(std::string_view(&st._cache[_start], len)); it != st._lookup.end()) {
+				clear();
+				return string_t(it->second);
+			}
+			st._cache.push_back(0); // zero termination
+			st._lookup.emplace(std::string_view(&st._cache[_start], len), _start);
+			string_id_t index = _start;
+			clear();
+			return index;
+		}
+
+	};
 };
 static inline bool operator==(const string_t& l, const string_t& r) {
 	return static_cast<string_id_t>(l) == static_cast<string_id_t>(r);
@@ -218,11 +260,11 @@ private:
 };
 class Location {
 	FileId _fileIndex;
-	uint32_t _line;
-	uint16_t _column;
+	size_t _line;
+	size_t _column;
 public:
 	constexpr Location() : _fileIndex(FileId()), _line(1), _column(1) {}
-	constexpr Location(uint32_t line, uint16_t column) : _fileIndex(FileId()), _line(line), _column(column) {}
+	constexpr Location(size_t line, size_t column) : _fileIndex(FileId()), _line(line), _column(column) {}
 	constexpr auto line() const { return _line; }
 	constexpr auto column() const { return _column; }
 	constexpr auto fileIndex() const { return _fileIndex; }
@@ -241,6 +283,7 @@ public:
 		return *this;
 	}
 	inline Location& add_columns(uint16_t count) { _column += count; return *this; }
+	inline Location& add_line(uint16_t line) { _line += line; _column = 0;  return *this; }
 	inline bool is_builtins() const { return _fileIndex == std::numeric_limits<decltype(_fileIndex)>::max(); }
 };
 

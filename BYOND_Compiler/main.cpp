@@ -5,10 +5,11 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
-
+#include "util.hpp"
 #include "lodepng.h"
 #include <iostream>
 #include "Lex.hpp"
+#include <tao/pegtl/contrib/tracer.hpp>
 
 /*
 Display general info about the PNG.
@@ -231,7 +232,208 @@ void displayFilterTypes(const std::vector<unsigned char>& buffer, bool ignore_ch
 	std::cout << std::endl;
 
 }
+struct metadata {
 
+
+	size_t width;
+	size_t height;
+	std::vector<size_t> states;
+	std::unordered_map<string_t, size_t> state_names;
+
+	//void parse_metadata(std::istream& is) {
+	//	std::string line;
+	//	if (std::getline(is, line) && line.find_first_of("# BEGIN DMI")) {
+	//
+//
+	//}
+};
+namespace dmi_parser {
+	enum class DIR {
+		NORTH = 1,
+		SOUTH= 2,
+		EAST  = 4,
+		WEST = 8,
+		NORTHEAST = 5,
+		NORTHWEST = 9,
+		SOUTHEAST  = 6,
+		SOUTHWEST  = 10,
+	};
+		/// Without an explicit setting, only one frame
+		/// There are this many frames lasting one tick each
+		//Count(usize),
+		/// Each frame lasts the corresponding number of ticks
+		//Delays(Vec<f32>),
+		// TODO: hotspot support here
+	using frames_t = std::variant<std::nullptr_t, size_t, std::vector<float>>;
+	enum class DIRS {
+		One = 1,
+		Four = 4,
+		Eight = 8
+	};
+	struct state_t {
+		/// Frames before this state starts
+		size_t offset;
+		string_t name;
+		size_t loop;
+		bool rewind;
+		bool movement;
+		DIRS dirs;
+		frames_t frames;
+		size_t frame_count() const {
+			return 				
+				std::visit(overloaded{  // (3)
+					[](std::nullptr_t) ->size_t { return 1; },
+					[](size_t i)->size_t { return i; },
+					[](const std::vector<float>& times)->size_t { return times.size(); }
+				}, frames);
+		}
+		float frame_delay(size_t idx) const {
+			return
+				std::visit(overloaded{  // (3)
+					[idx](std::nullptr_t) ->float { return 1.0f; },
+					[idx](size_t i)->float { return 1.0f; },
+					[idx](const std::vector<float>& times)->float { return times[idx]; }
+					}, frames);
+		}
+		size_t sprite_count() const {
+			return static_cast<size_t>(dirs)* frame_count();
+		}
+	};
+
+	struct metadata_t {
+		size_t width;
+		size_t height;
+		std::vector<state_t> states;
+		std::unordered_map<string_t, size_t> state_names;
+		metadata_t() : width(32), height(32) {}
+	};
+
+
+	using namespace TAO_PEGTL_NAMESPACE;
+	// clang-format off
+	struct blank0 : star< blank > {};
+	struct blanks : plus< blank > {};
+	struct number_value : plus< digit > {};
+	struct string_value :seq < one<'"'>, until<one<'"'>>> {};
+	struct value : sor<number_value, string_value> {};
+	struct delay_time : number {};
+
+	struct name : identifier {};
+	struct equals : pad< one< '=' >, blanks > {};
+	// 
+	template<typename NAME,typename VALUE>
+	struct assignment : if_must< NAME, equals, VALUE> {};
+
+	struct delay_item : pad< delay_time, blank > {};
+	struct delay_list : list_must< delay_item, one< ',' > > {};
+
+	struct dmi_delay : assignment< TAO_PEGTL_STRING("delay"), delay_list> {};
+	struct dmi_width : assignment< TAO_PEGTL_STRING("width"), number_value> {};
+	struct dmi_height : assignment< TAO_PEGTL_STRING("height"), number_value> {};
+	struct dmi_dirs : assignment< TAO_PEGTL_STRING("dirs"), number_value> {};
+	struct dmi_frames : assignment< TAO_PEGTL_STRING("frames"), number_value> {};
+	struct dmi_state : assignment< TAO_PEGTL_STRING("state"), string_value> {};
+	struct dmi_loop : assignment< TAO_PEGTL_STRING("loop"), number_value> {};
+	struct dmi_hotspot : assignment< TAO_PEGTL_STRING("hotspot"), number_value> {};
+	struct dmi_rewind : assignment< TAO_PEGTL_STRING("rewind"), number_value> {};
+	struct dmi_movement : assignment< TAO_PEGTL_STRING("movement"), number_value> {};
+
+
+	struct assignments : pad<sor< dmi_width, dmi_height, dmi_dirs, dmi_frames, dmi_state, dmi_loop, dmi_hotspot, dmi_rewind, dmi_movement>, blanks>{};
+
+	struct END_OF_DMI : pad<TAO_PEGTL_STRING("# END DMI"),blanks> {};
+	struct BEGIN_OF_DMI : pad < TAO_PEGTL_STRING("# BEGIN DMI"), blanks> {};
+	struct VERSION_OF_DMI : pad < TAO_PEGTL_STRING("version = 4.0"), blanks> {};
+
+	struct start_of_dmi : seq<BEGIN_OF_DMI, eol, VERSION_OF_DMI, eol> {};
+	struct end_of_dmi : sor<END_OF_DMI, eof> {};
+	struct dmi_grammer : seq <start_of_dmi, until<end_of_dmi, must<seq<assignments,eol>>>> {};
+
+
+	struct state {
+		std::string name;
+		std::variant<std::string,int,std::vector<float>> value;
+		metadata_t meta;
+		size_t frames_so_far;
+		state() :frames_so_far(0) {}
+	};
+
+	template< typename Rule >
+	struct action
+	{};
+	template<>
+	struct action< string_value >
+	{
+		template< typename Input >
+		static void apply(const Input& in, state& st)
+		{
+			st.value = in.string();
+#if 0
+			if (st.temp == "state") {
+				if (st.meta.states.size() > 0) {
+					st.frames_so_far += st.meta.states.back().frame_count();
+				}
+				string_t name = text;
+				st.meta.state_names[name] = st.meta.states.size();
+				st.meta.states.push_back(state_t());
+				st.meta.states.back().offset = st.frames_so_far;
+				st.meta.states.back().name = name;
+			}
+#endif
+		}
+	};
+	template<>
+	struct action< delay_time >
+	{
+		template< typename Input >
+		static void apply(const Input& in, state& st)
+		{
+			if (!std::holds_alternative < std::vector<float>(st.value)) {
+				st.value = std::move(std::vector<float>());
+			}
+			std::get< std::vector<float>>(st.value).push_back(strtof(in.string().c_str(), NULL));
+#if 0
+			if (st.temp == "width") {
+				st.meta.width
+			}
+			else if (st.temp == "height") {
+				st.meta.height = strtol(text.c_str(), NULL, 10);
+			}
+#endif
+
+		}
+	};
+	template<>
+	struct action< number_value >
+	{
+		template< typename Input >
+		static void apply(const Input& in, state& st)
+		{
+			st.value = static_cast<int>(strtol(in.string().c_str(), NULL, 10));
+#if 0
+			if (st.temp == "width") {
+				st.meta.width 
+			}
+			else if (st.temp == "height") {
+				st.meta.height=strtol(text.c_str(), NULL, 10);
+			}
+#endif
+
+		}
+	};
+	template<>
+	struct action< name >
+	{
+		template< typename Input >
+		static void apply(const Input& in, state& st)
+		{
+			st.name = in.string();
+		}
+	};
+
+
+};
+namespace pegtl = TAO_PEGTL_NAMESPACE;
 //Lexer lexer;
 int main(int argc, const char** argv)
 {
@@ -286,7 +488,18 @@ int main(int argc, const char** argv)
 
 	for (auto p : text_data) {
 		if (p.first == "Description") {
-
+			for (int i = 1; i < argc; ++i) {
+				std::string str = p.second;
+				pegtl::string_input si(str,"erwhat?");
+				dmi_parser::state st;
+				pegtl::parse< dmi_parser::dmi_grammer, dmi_parser::action,pegtl::tracer >(si, st);
+			//	pegtl::parse< dmi_parser::dmi_grammer>(si, st);
+#if 0
+				for (const auto& j : st.symbol_table) {
+					std::cout << j.first << " = " << j.second << std::endl;
+				}
+#endif
+			}
 
 
 
